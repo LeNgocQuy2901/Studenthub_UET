@@ -1,0 +1,149 @@
+import urllib.request
+import urllib.error
+import json
+import sys
+
+BASE_URL = "http://localhost:8080"
+passed = 0
+failed = 0
+
+def test(name, condition, details=""):
+    global passed, failed
+    if condition:
+        print(f" [PASS] {name}")
+        passed += 1
+    else:
+        print(f" [FAIL] {name}: {details}")
+        failed += 1
+
+def request(path, method="GET", data=None):
+    url = BASE_URL + path
+    headers = {"Content-Type": "application/json"}
+    body = json.dumps(data).encode("utf-8") if data else None
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            content = resp.read().decode("utf-8")
+            status = resp.getcode()
+            try:
+                parsed = json.loads(content)
+            except Exception:
+                parsed = content
+            return status, parsed
+    except urllib.error.HTTPError as e:
+        content = e.read().decode("utf-8")
+        try:
+            parsed = json.loads(content)
+        except Exception:
+            parsed = content
+        return e.code, parsed
+    except Exception as e:
+        return 500, str(e)
+
+print("=" * 60)
+print("RUNNING STUDENTHUB UET NEW FEATURES API TEST SUITE")
+print("=" * 60)
+
+# 1. P1: Career Roles
+status, res = request("/api/career/roles")
+test("GET /api/career/roles returns 200", status == 200 and res.get("code") == 200)
+test("GET /api/career/roles has at least 5 roles", len(res.get("data", [])) >= 5)
+
+# Role detail
+status, res = request("/api/career/roles/se-fullstack")
+test("GET /api/career/roles/se-fullstack returns 200", status == 200 and res.get("data", {}).get("id") == "se-fullstack")
+test("Role has required skills and course mappings", len(res.get("data", {}).get("requiredSkills", [])) > 0 and len(res.get("data", {}).get("courseMappings", [])) > 0)
+
+# Save assessment
+assessment_payload = {
+    "roleId": "se-fullstack",
+    "ratings": {"Lập trình Web hiện đại": 4, "Thiết kế Backend": 3},
+    "gapAnalysis": {"Lập trình Web hiện đại": {"current": 4, "target": 4, "gap": 0}}
+}
+status, res = request("/api/career/assessment", method="POST", data=assessment_payload)
+test("POST /api/career/assessment returns 200", status == 200 and res.get("code") == 200)
+
+status, res = request("/api/career/assessment?roleId=se-fullstack")
+test("GET /api/career/assessment retrieves saved ratings", status == 200 and res.get("data", {}).get("ratings", {}).get("Lập trình Web hiện đại") == 4)
+
+# Save roadmap
+roadmap_payload = {
+    "roleId": "se-fullstack",
+    "roleTitle": "Kỹ sư Phát triển Phần mềm",
+    "stages": [{"stage": 1, "title": "Nền tảng", "duration": "Năm 1"}],
+    "notes": "Test roadmap"
+}
+status, res = request("/api/career/roadmap", method="POST", data=roadmap_payload)
+test("POST /api/career/roadmap returns 200", status == 200 and res.get("code") == 200)
+
+status, res = request("/api/career/roadmap?roleId=se-fullstack")
+test("GET /api/career/roadmap retrieves saved roadmap", status == 200 and len(res.get("data", {}).get("stages", [])) == 1)
+
+# 2. P2: Chatbot Assistant
+chat_payload = {"message": "Điều kiện tốt nghiệp ngành CNTT UET là gì?"}
+status, res = request("/api/chat/send", method="POST", data=chat_payload)
+test("POST /api/chat/send returns answer with 200", status == 200 and res.get("status") == "success")
+test("Chatbot returns sources and content", len(res.get("message", {}).get("content", "")) > 50 and len(res.get("message", {}).get("sources", [])) > 0)
+
+# Chatbot validation test: empty message
+status, res = request("/api/chat/send", method="POST", data={"message": ""})
+test("POST /api/chat/send rejects empty message with 400", status == 400)
+
+# Chatbot validation test: length limit > 1000 chars
+status, res = request("/api/chat/send", method="POST", data={"message": "A" * 1005})
+test("POST /api/chat/send rejects >1000 chars with 400", status == 400)
+
+# 3. P3: Organizations Directory
+status, res = request("/api/organizations")
+test("GET /api/organizations returns 200", status == 200 and len(res.get("data", [])) >= 6)
+
+status, res = request("/api/organizations/clb-tin-hoc")
+test("GET /api/organizations/clb-tin-hoc returns detail", status == 200 and res.get("data", {}).get("id") == "clb-tin-hoc")
+
+# Toggle bookmark
+status, res = request("/api/organizations/bookmark", method="POST", data={"orgId": "clb-tin-hoc"})
+test("POST /api/organizations/bookmark toggles bookmark", status == 200 and "bookmarked" in res)
+
+# 4. P4: Mentors & Connection Requests
+status, res = request("/api/mentors")
+test("GET /api/mentors returns mentor list", status == 200 and len(res.get("data", [])) >= 4)
+
+# Submit mentorship request
+req_payload = {
+    "mentorId": "mentor-1",
+    "topic": "Định hướng trở thành Full-stack Engineer",
+    "reason": "Em muốn xin tư vấn kinh nghiệm chọn môn học và chuẩn bị CV thực tập.",
+    "preferredTime": "Tối thứ 7",
+    "contactEmail": "21020001@vnu.edu.vn"
+}
+status, res = request("/api/mentorship-requests", method="POST", data=req_payload)
+test("POST /api/mentorship-requests saves request with 200", status == 200 and res.get("data", {}).get("status") == "PENDING")
+created_id = res.get("data", {}).get("id")
+
+# Fetch student's requests
+status, res = request("/api/mentorship-requests")
+test("GET /api/mentorship-requests returns student requests", status == 200 and any(r["id"] == created_id for r in res.get("data", [])))
+
+# Cancel request
+status, res = request(f"/api/mentorship-requests/{created_id}/cancel", method="POST")
+test("POST /api/mentorship-requests/<id>/cancel cancels request", status == 200 and res.get("code") == 200)
+
+# 5. Routing Fallback
+status, res = request("/career-guidance")
+test("SPA route /career-guidance serves index.html", status == 200 and "<!doctype html>" in str(res).lower())
+
+status, res = request("/student-assistant")
+test("SPA route /student-assistant serves index.html", status == 200 and "<!doctype html>" in str(res).lower())
+
+status, res = request("/organizations")
+test("SPA route /organizations serves index.html", status == 200 and "<!doctype html>" in str(res).lower())
+
+status, res = request("/mentorship")
+test("SPA route /mentorship serves index.html", status == 200 and "<!doctype html>" in str(res).lower())
+
+print("=" * 60)
+print(f"TEST RESULTS: {passed} PASSED, {failed} FAILED")
+print("=" * 60)
+
+if failed > 0:
+    sys.exit(1)
