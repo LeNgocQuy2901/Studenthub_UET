@@ -914,23 +914,45 @@
                 createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               }]);
             } else {
+              const fallback = (window.__mockChatbot ? window.__mockChatbot(text) : null);
+              if (fallback && fallback.message) {
+                setMessages(prev => [...prev, {
+                  id: "bot_" + Date.now(),
+                  sender: "assistant",
+                  content: fallback.message.content,
+                  sources: fallback.message.sources || [],
+                  createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }]);
+              } else {
+                setMessages(prev => [...prev, {
+                  id: "err_" + Date.now(),
+                  sender: "assistant",
+                  content: "⚠️ Đã có sự cố kết nối tới máy chủ giải đáp. Vui lòng thử lại sau.",
+                  sources: [],
+                  createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }]);
+              }
+            }
+          })
+          .catch(err => {
+            const fallback = (window.__mockChatbot ? window.__mockChatbot(text) : null);
+            if (fallback && fallback.message) {
+              setMessages(prev => [...prev, {
+                id: "bot_" + Date.now(),
+                sender: "assistant",
+                content: fallback.message.content,
+                sources: fallback.message.sources || [],
+                createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+            } else {
               setMessages(prev => [...prev, {
                 id: "err_" + Date.now(),
                 sender: "assistant",
-                content: "⚠️ Đã có sự cố kết nối tới máy chủ giải đáp. Vui lòng thử lại sau.",
+                content: "❌ Không thể gửi tin nhắn: " + err.message,
                 sources: [],
                 createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               }]);
             }
-          })
-          .catch(err => {
-            setMessages(prev => [...prev, {
-              id: "err_" + Date.now(),
-              sender: "assistant",
-              content: "❌ Không thể gửi tin nhắn: " + err.message,
-              sources: [],
-              createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }]);
           })
           .finally(() => setLoading(false));
       };
@@ -1824,15 +1846,37 @@
               sources: res.message.sources || [],
               createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }]);
+          } else {
+            const fallback = (window.__mockChatbot ? window.__mockChatbot(q) : null);
+            if (fallback && fallback.message) {
+              setMessages(prev => [...prev, {
+                id: "b_" + Date.now(),
+                sender: "assistant",
+                content: fallback.message.content,
+                sources: fallback.message.sources || [],
+                createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]);
+            }
           }
         })
         .catch(err => {
-          setMessages(prev => [...prev, {
-            id: "err_" + Date.now(),
-            sender: "assistant",
-            content: "Lỗi kết nối: " + err.message,
-            createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]);
+          const fallback = (window.__mockChatbot ? window.__mockChatbot(q) : null);
+          if (fallback && fallback.message) {
+            setMessages(prev => [...prev, {
+              id: "b_" + Date.now(),
+              sender: "assistant",
+              content: fallback.message.content,
+              sources: fallback.message.sources || [],
+              createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+          } else {
+            setMessages(prev => [...prev, {
+              id: "err_" + Date.now(),
+              sender: "assistant",
+              content: "Lỗi kết nối: " + err.message,
+              createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }]);
+          }
         })
         .finally(() => setLoading(false));
     };

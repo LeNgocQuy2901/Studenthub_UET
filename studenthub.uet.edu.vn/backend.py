@@ -458,6 +458,40 @@ def seed_data_if_needed():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, orgs)
 
+        # Seed crawled FIT units from crawled_fit_units.json
+        crawled_path = os.path.join(os.path.dirname(__file__), "crawled_fit_units.json")
+        if os.path.exists(crawled_path):
+            try:
+                with open(crawled_path, "r", encoding="utf-8") as f:
+                    crawled_data = json.load(f)
+                crawled_rows = [
+                    (
+                        item["id"],
+                        item["name"],
+                        item["category"],
+                        item["field"],
+                        item["summary"],
+                        item["description"],
+                        item["requirements"],
+                        item["recruitment_status"],
+                        item["recruitment_period"],
+                        item["contact_person"],
+                        item["email"],
+                        item["website"],
+                        item["facebook"],
+                        item["location"],
+                        item["verified"]
+                    )
+                    for item in crawled_data
+                ]
+                cur.executemany("""
+                    INSERT OR IGNORE INTO organizations (id, name, category, field, summary, description, requirements, recruitment_status, recruitment_period, contact_person, email, website, facebook, location, verified)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, crawled_rows)
+            except Exception as e:
+                print("Warning seeding crawled units:", e)
+
+
     # Check mentors
     cur.execute("SELECT COUNT(*) FROM mentors")
     if cur.fetchone()[0] == 0:
@@ -548,7 +582,7 @@ def seed_data_if_needed():
 # ---------------------------------------------------------------------------
 UET_KNOWLEDGE_BASE = [
     {
-        "keywords": ["chuẩn đầu ra", "điều kiện tốt nghiệp", "tín chỉ tốt nghiệp", "tot nghiep", "cntt", "khoa cntt"],
+        "keywords": ["chuẩn đầu ra", "điều kiện tốt nghiệp", "tín chỉ tốt nghiệp", "xét tốt nghiệp", "tot nghiep", "ra trường", "bằng tốt nghiệp"],
         "topic": "Điều kiện tốt nghiệp hệ đào tạo cử nhân CNTT UET",
         "reference": "Quy chế Đào tạo ĐHQGHN & Sổ tay sinh viên UET 2024",
         "type": "verified",
@@ -595,6 +629,20 @@ UET_KNOWLEDGE_BASE = [
         "reference": "Mạng lưới Cựu sinh viên & Hỗ trợ việc làm UET",
         "type": "verified",
         "answer": "Chương trình Cố vấn nghề nghiệp (Career Mentorship) kết nối sinh viên UET với các cựu sinh viên và chuyên gia cấp cao đang công tác tại các tập đoàn công nghệ lớn (FPT, Viettel, VNPT, MoMo, VNPT...).\nSinh viên có thể:\n- Tra cứu danh bạ Mentor theo chuyên môn và lĩnh vực.\n- Đặt lịch hẹn tư vấn 1-on-1 (Review CV, định hướng phỏng vấn, chia sẻ kinh nghiệm đồ án).\n- Theo dõi trạng thái yêu cầu tại mục 'Cố vấn nghề nghiệp' trên StudentHub."
+    },
+    {
+        "keywords": ["bộ môn", "bo mon", "bộ môn khoa cntt", "các bộ môn", "cac bo mon", "bộ môn công nghệ phần mềm", "bộ môn hệ thống thông tin", "khoa học máy tính", "mạng máy tính", "kỹ thuật tính toán"],
+        "topic": "Danh sách các Bộ môn chuyên môn thuộc Khoa Công nghệ Thông tin - UET",
+        "reference": "https://www.fit.uet.vnu.edu.vn/gioi-thieu/cac-bo-mon/",
+        "type": "verified",
+        "answer": "Khoa Công nghệ Thông tin (Trường ĐH Công nghệ - ĐHQGHN) có 5 Bộ môn chuyên môn chính:\n1. Bộ môn Các Hệ thống Thông tin: Đào tạo & nghiên cứu về CSDL, Khai phá dữ liệu và Hệ thống thông tin.\n2. Bộ môn Công nghệ Phần mềm: Phụ trách môn Lập trình hướng đối tượng, Kiến trúc phần mềm, Phát triển Web/Mobile, Kiểm thử.\n3. Bộ môn Khoa học Máy tính: Cấu trúc dữ liệu & giải thuật, Trí tuệ nhân tạo, Học máy, Lý thuyết tính toán.\n4. Bộ môn Khoa học và Kỹ thuật tính toán: Toán ứng dụng, mô hình hóa và mô phỏng tính toán hiệu năng cao.\n5. Bộ môn Mạng và Truyền thông Máy tính: Mạng máy tính, Điện toán đám mây, An ninh mạng và IoT."
+    },
+    {
+        "keywords": ["phòng thí nghiệm nghiên cứu", "các phòng thí nghiệm", "phòng thí nghiệm", "phong thi nghiem", "các lab fit", "lab uet", "phòng thí nghiệm mục tiêu", "blockchain", "tin sinh", "iot", "tương tác người máy", "an toàn thông tin"],
+        "topic": "Danh sách các Phòng thí nghiệm & Phòng thí nghiệm mục tiêu thuộc Khoa CNTT - UET",
+        "reference": "https://www.fit.uet.vnu.edu.vn/gioi-thieu/cac-bo-mon/",
+        "type": "verified",
+        "answer": "Khoa CNTT - UET hiện có hệ thống các Phòng thí nghiệm (Lab) nghiên cứu trọng điểm:\n- PTN An toàn thông tin (NetSec Lab): An ninh mạng, mật mã, phân tích mã độc và CTF.\n- PTN Công nghệ Tri thức (KTLab): Xử lý ngôn ngữ tự nhiên, học máy, mô hình ngôn ngữ lớn.\n- PTN Hệ thống Nhúng: Phần cứng, RTOS, xe tự hành và thiết bị IoT.\n- PTN Tương tác Người – Máy (HCI Lab): Đồ họa máy tính, thị giác máy tính, VR/AR.\n- Các PTN mục tiêu: Tối ưu hóa các Hệ thống lớn, Blockchain, Tin Sinh Y Học, IoT, Đảm bảo Chất lượng Phần mềm, Trí tuệ Nhân tạo."
     }
 ]
 
@@ -602,7 +650,8 @@ def search_knowledge_base(query):
     query_lower = query.lower()
     matched = []
     for item in UET_KNOWLEDGE_BASE:
-        score = sum(1 for kw in item["keywords"] if kw in query_lower)
+        # Score based on keyword length to give higher relevance to specific multi-word terms
+        score = sum(len(kw) for kw in item["keywords"] if kw in query_lower)
         if score > 0:
             matched.append((score, item))
     matched.sort(key=lambda x: x[0], reverse=True)

@@ -412,7 +412,11 @@
     if (cleanUrl.includes("student/person/family-detail")) return { data: MOCK_DATA.familyDetail };
     if (cleanUrl.includes("student/person/healthcare_detail")) return { data: MOCK_DATA.healthcareDetail };
     if (cleanUrl.includes("student/interest")) return { data: MOCK_DATA.interests };
-    if (cleanUrl.includes("student/avatar")) return { imagePath: "/images/Logo-DH-Cong-Nghe-UET.webp", data: { imagePath: "/images/Logo-DH-Cong-Nghe-UET.webp" } };
+    if (cleanUrl.includes("student/avatar")) {
+      // Return a valid 1x1 transparent PNG Blob so URL.createObjectURL(blob) succeeds without errors
+      const u8 = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,10,73,68,65,84,120,156,99,0,1,0,0,5,0,1,13,10,45,180,0,0,0,0,73,69,78,68,174,66,96,130]);
+      return new Blob([u8], { type: "image/png" });
+    }
     if (cleanUrl.includes("student/person/other-email/status")) return { code: 200, data: true, verified: true };
     if (cleanUrl.includes("student/profile-step")) return { data: { profileStep: 5, status: "succeeded" } };
     if (cleanUrl.includes("student/learner-type")) return { data: { learnerType: "UNDERGRADUATE" } };
@@ -433,10 +437,212 @@
     return { data: [], content: [], msgCode: "OK", status: 200, code: 200 };
   }
 
+  // ---------------------------------------------------------------------------
+  // Comprehensive Mock AI Chatbot Knowledge Base
+  // ---------------------------------------------------------------------------
+  const MOCK_CHAT_KNOWLEDGE = [
+    {
+      keywords: ["bộ môn", "bo mon", "bộ môn khoa cntt", "các bộ môn", "cac bo mon", "khoa cntt", "chủ nhiệm bộ môn", "hệ thống thông tin", "công nghệ phần mềm", "khoa học máy tính", "kỹ thuật tính toán", "mạng và truyền thông"],
+      topic: "Danh sách 5 Bộ môn chuyên môn thuộc Khoa Công nghệ Thông tin - UET",
+      ref: "https://www.fit.uet.vnu.edu.vn/gioi-thieu/cac-bo-mon/",
+      type: "verified",
+      answer: "Chào bạn! Khoa Công nghệ Thông tin (Trường Đại học Công nghệ - ĐHQGHN) gồm 5 Bộ môn chuyên môn nòng cốt:\n\n1. 🏢 **Bộ môn Các Hệ thống Thông tin:**\n   - Chủ nhiệm: PGS. TS. Nguyễn Ngọc Hóa | Phó CN: PGS. TS. Nguyễn Trí Thành.\n   - Địa điểm: P311-313, Nhà E3.\n   - Lĩnh vực: Khai phá dữ liệu, GIS, Tích hợp dịch vụ & An toàn thông tin.\n\n2. 💻 **Bộ môn Công nghệ Phần mềm:**\n   - Chủ nhiệm: TS. Võ Đình Hiếu.\n   - Địa điểm: P321, Nhà E3.\n   - Lĩnh vực: Thiết kế kiến trúc phần mềm, phát triển Web/Mobile, quy trình Agile và kiểm thử chất lượng.\n\n3. 🧠 **Bộ môn Khoa học Máy tính:**\n   - Chủ nhiệm: TS. Trần Quốc Long.\n   - Địa điểm: P315-317, Nhà E3.\n   - Lĩnh vực: Học máy, Trí tuệ nhân tạo, Xử lý ngôn ngữ tự nhiên, Thị giác máy tính.\n\n4. 📐 **Bộ môn Khoa học và Kỹ thuật tính toán:**\n   - Chủ nhiệm: TS. Đặng Thanh Hải.\n   - Địa điểm: P319, Nhà E3.\n   - Lĩnh vực: Tin sinh học (Genomics), Tối ưu hóa, Toán tin và mô phỏng tính toán hiệu năng cao.\n\n5. 🌐 **Bộ môn Mạng và Truyền thông Máy tính:**\n   - Chủ nhiệm: TS. Nguyễn Hoài Sơn.\n   - Địa điểm: P406, Nhà E3.\n   - Lĩnh vực: Mạng máy tính, An ninh mạng, Điện toán đám mây và IoT."
+    },
+    {
+      keywords: ["phòng thí nghiệm", "phong thi nghiem", "lab", "ptn", "blockchain", "iot", "an toàn thông tin", "nghiên cứu khoa học", "nckh", "tri thức", "nhúng", "người máy", "hci"],
+      topic: "Hệ thống các Phòng thí nghiệm & PTN Mục tiêu thuộc Khoa CNTT - UET",
+      ref: "https://www.fit.uet.vnu.edu.vn/gioi-thieu/cac-bo-mon/",
+      type: "verified",
+      answer: "Chào bạn! Khoa CNTT - UET hiện sở hữu hệ thống các Phòng thí nghiệm chuyên sâu và PTN Mục tiêu phục vụ nghiên cứu & đồ án:\n\n🔬 **Các Phòng thí nghiệm trọng điểm:**\n1. **PTN An toàn thông tin (NetSec Lab):** P312 Nhà G2 - Trưởng phòng: TS. Vũ Mạnh Hùng. Nghiên cứu an ninh mạng, mật mã, CTF và phòng thủ hệ thống.\n2. **PTN Công nghệ Tri thức (KTLab):** Nghiên cứu Khoa học dữ liệu, AI và Mô hình ngôn ngữ lớn (LLMs).\n3. **PTN Hệ thống Nhúng:** Thiết kế phần cứng, RTOS, vi điều khiển và xe tự hành.\n4. **PTN Tương tác Người – Máy (HCI Lab):** Thị giác máy tính, VR/AR, giao diện người dùng thông minh.\n\n🚀 **Các PTN Mục tiêu đón đầu công nghệ:**\n- PTN Mục tiêu Tối ưu hóa các Hệ thống lớn\n- PTN Mục tiêu Blockchain\n- PTN Mục tiêu Tin Sinh Y Học\n- PTN Mục tiêu Internet of Things (IoT)\n- PTN Mục tiêu Đảm bảo Chất lượng Phần mềm\n- PTN Mục tiêu Trí tuệ Nhân tạo\n\n📌 *Sinh viên có thể đăng ký thực tập hoặc tham gia nghiên cứu tại mục 'Câu lạc bộ & Phòng TN' trên StudentHub.*"
+    },
+    {
+      keywords: ["chuẩn đầu ra", "tot nghiep", "tốt nghiệp", "điều kiện tốt nghiệp", "tín chỉ", "ra trường", "bằng tốt nghiệp", "xét tốt nghiệp"],
+      topic: "Quy định Chuẩn đầu ra & Điều kiện Tốt nghiệp UET",
+      ref: "Quy chế Đào tạo ĐHQGHN & Sổ tay Sinh viên UET",
+      type: "verified",
+      answer: "Để đủ điều kiện công nhận tốt nghiệp hệ đại học chính quy tại UET, bạn cần đáp ứng các tiêu chuẩn sau:\n\n1. 📚 **Tín chỉ tích lũy:** Hoàn thành đủ số tín chỉ quy định của khung CTĐT (128 - 135 tín chỉ tùy ngành đào tạo).\n2. 🎯 **Điểm trung bình tích lũy (CPA/GPA):** Đạt từ 2.00 / 4.00 trở lên (không còn học phần F chưa trả nợ).\n3. 🌐 **Chuẩn Ngoại ngữ:** Đạt chứng chỉ VSTEP bậc 3/6 (B1) trở lên, hoặc tương đương (IELTS >= 4.5 - 5.5 theo quy định từng khóa).\n4. 🏃 **Chuẩn Thể chất & Quốc phòng:** Có chứng chỉ hoàn thành Giáo dục Thể chất và GD Quốc phòng - An ninh.\n5. 💻 **Chuẩn Tin học:** Đạt chuẩn kỹ năng sử dụng CNTT theo quy định.\n6. ⚖️ **Kỷ luật:** Tại thời điểm xét không bị truy cứu trách nhiệm hình sự hoặc đình chỉ học tập."
+    },
+    {
+      keywords: ["đăng ký học phần", "dang ky hoc phan", "rút môn", "hủy môn", "đổi lớp", "tin chi"],
+      topic: "Quy trình đăng ký và điều chỉnh học phần",
+      ref: "Phòng Đào tạo UET (P105-E3) & Cổng dangkyhoc.vnu.edu.vn",
+      type: "verified",
+      answer: "Quy trình đăng ký học phần tại UET:\n\n1. ⏰ **Đợt đăng ký chính thức:** Sinh viên truy cập cổng `dangkyhoc.vnu.edu.vn` theo đúng khung giờ được phân bổ cho từng khóa.\n2. 🔄 **Đợt đăng ký bổ sung & Đổi lớp:** Mở trước khi bắt đầu học kỳ hoặc trong 2 tuần đầu kỳ học.\n3. ❌ **Rút bớt học phần:** Được thực hiện trong thời hạn thông báo (thường trong 2 - 4 tuần đầu kỳ). Học phần rút sẽ không tính vào điểm GPA nhưng vẫn nộp học phí theo quy chế.\n\n*Lưu ý: Mọi thắc mắc về trùng lịch thi, xin mở thêm lớp liên hệ Phòng Đào tạo (Phòng 105 Nhà E3, email: daotao_dhcn@vnu.edu.vn).*"
+    },
+    {
+      keywords: ["học phí", "hoc phi", "nộp tiền", "thanh toán", "ngân hàng", "miễn giảm"],
+      topic: "Quy định Học phí & Kênh thanh toán StudentHub UET",
+      ref: "Phòng Kế hoạch - Tài chính UET",
+      type: "verified",
+      answer: "Về học phí và thanh toán:\n\n1. 💳 **Tra cứu hóa đơn:** Bạn có thể xem chi tiết học phí của từng học kỳ tại mục **'Tài chính sinh viên'** trên menu StudentHub.\n2. 🏦 **Hình thức nộp:** Chuyển khoản ngân hàng (qua số tài khoản của Trường ĐH Công nghệ tại BIDV) hoặc nộp qua cổng thanh toán trực tuyến với cú pháp: `[Mã sinh viên] - [Mã hóa đơn]`.\n3. 🎁 **Miễn giảm học phí & trợ cấp xã hội:** Nộp hồ sơ đầu mỗi năm học tại Phòng Công tác Sinh viên (Phòng 104 Nhà E3)."
+    },
+    {
+      keywords: ["giấy xác nhận", "giay xac nhan", "vay vốn", "nghĩa vụ quân sự", "hoãn nghĩa vụ", "thẻ sinh viên", "thủ tục hành chính", "một cửa"],
+      topic: "Thủ tục hành chính sinh viên một cửa",
+      ref: "Phòng Công tác Sinh viên (P104-E3) & Cổng StudentHub",
+      type: "verified",
+      answer: "Để xin các loại giấy tờ hành chính sinh viên:\n\n1. Truy cập mục **'Thủ tục hành chính' -> 'Tạo yêu cầu'** trên thanh điều hướng StudentHub UET.\n2. Chọn loại biểu mẫu cần xin:\n   - Giấy xác nhận đang là sinh viên (làm hồ sơ, vé xe buýt...)\n   - Giấy vay vốn Ngân hàng Chính sách xã hội\n   - Giấy tạm hoãn Nghĩa vụ quân sự\n   - Đề nghị cấp lại Thẻ sinh viên\n3. Điền thông tin và bấm 'Gửi yêu cầu'.\n4. Sau 1-2 ngày làm việc khi hệ thống chuyển trạng thái 'Đã duyệt', bạn đến nhận bản đóng dấu đỏ tại **Bộ phận Một cửa - Phòng Công tác Sinh viên (Phòng 104, Nhà E3)**."
+    },
+    {
+      keywords: ["học bổng", "hoc bong", "khuyến khích", "toshiba", "mitsubishi", "yamada", "viettel", "samsung"],
+      topic: "Chính sách Học bổng Khuyến khích & Doanh nghiệp UET",
+      ref: "Phòng Công tác Sinh viên & Hội đồng Học bổng UET",
+      type: "verified",
+      answer: "Trường ĐH Công nghệ có 2 hệ thống học bổng chính:\n\n1. 🌟 **Học bổng Khuyến khích học tập (Ngân sách):**\n   - Xét định kỳ mỗi kỳ dựa trên kết quả học tập (GPA >= 2.50) và Điểm rèn luyện (Loại Khá trở lên).\n   - Không có môn thi bị điểm F trong học kỳ xét.\n   - Phân loại: Khá, Giỏi, Xuất sắc tương ứng với các mức thưởng tài chính.\n\n2. 🏆 **Học bổng Doanh nghiệp & Quốc tế:**\n   - Học bổng danh giá thường niên: Toshiba, Mitsubishi, Yamada, Viettel, POSCO, Samsung, Honda Award...\n   - Tiêu chí: Thành tích học tập xuất sắc, đam mê nghiên cứu khoa học, hoặc sinh viên nghèo vượt khó."
+    },
+    {
+      keywords: ["câu lạc bộ", "clb", "hoạt động", "tinhoc", "icpc", "robotics", "guitar"],
+      topic: "Câu lạc bộ & Hoạt động phong trào sinh viên UET",
+      ref: "Đoàn Thanh niên - Hội Sinh viên UET",
+      type: "verified",
+      answer: "UET có môi trường hoạt động ngoại khóa rất sôi nổi:\n\n1. 💻 **CLB Tin học UET:** Nơi rèn luyện thuật toán đỉnh cao, thi đấu ICPC và tham gia dự án thực chiến.\n2. 🤖 **CLB Robotics & AI:** Chế tạo robot, xe tự hành, thi Robocon toàn quốc (xưởng tại Tầng 1 Nhà G3).\n3. 🎸 **CLB Âm nhạc (UET Guitar Club):** Sinh hoạt giao lưu âm nhạc, Acoustic Night hàng tháng.\n4. ⚽ **CLB Thể thao & Đội Tình nguyện UET.**\n\n👉 Bạn có thể xem chi tiết và đăng ký tham gia tại mục **'Câu lạc bộ & Phòng TN'** trên StudentHub!"
+    },
+    {
+      keywords: ["cố vấn", "mentor", "alumni", "cựu sinh viên", "hướng nghiệp", "cv", "phỏng vấn", "thực tập"],
+      topic: "Mạng lưới Cố vấn nghề nghiệp & Cựu sinh viên UET",
+      ref: "Mạng lưới Cựu sinh viên & Hỗ trợ việc làm UET",
+      type: "verified",
+      answer: "Chương trình Cố vấn nghề nghiệp kết nối bạn với các cựu sinh viên UET ưu tú:\n\n👨‍💻 **Các Mentor tiêu biểu:**\n- **Anh Trần Quang Huy:** Senior Tech Lead tại FPT Software (Alumni K58) - Chuyên môn: Full-stack Web, Microservices, Cloud.\n- **Chị Lê Minh Anh:** AI Research Lead tại Viettel AI (Alumni K60) - Chuyên môn: NLP, Học máy, LLMs, Du học KAIST.\n- **Anh Phạm Đức Minh:** Cyber Security Consultant tại VNPT (Alumni K59) - Chuyên môn: OSCP, Pentesting, CTF.\n- **Chị Đặng Phương Thảo:** Senior Product Manager tại MoMo (Alumni K61) - Chuyên môn: Product Design, Agile/Scrum.\n\n📅 *Bạn có thể vào mục **'Cố vấn nghề nghiệp'** trên menu để gửi yêu cầu tư vấn 1-on-1 (Review CV, định hướng phỏng vấn và lộ trình nghề nghiệp)!*"
+    },
+    {
+      keywords: ["nghề nghiệp", "việc làm", "lộ trình", "roadmap", "định hướng", "software engineer", "ai engineer", "devops", "cloud", "security", "product manager"],
+      topic: "Định hướng nghề nghiệp & Lộ trình học tập sinh viên CNTT",
+      ref: "Khung kỹ năng thị trường lao động CNTT 2024-2025",
+      type: "verified",
+      answer: "StudentHub UET cung cấp tính năng **'Định hướng nghề nghiệp'** giúp bạn xây dựng lộ trình học tập tối ưu:\n\n🎯 **Các hướng nghề nghiệp thị trường:**\n1. **Kỹ sư Phát triển Phần mềm (Full-stack Software Engineer):** Học sâu React/Next.js, Node.js/Java/Python, CSDL và CI/CD.\n2. **Kỹ sư Trí tuệ Nhân tạo (AI / Machine Learning Engineer):** Toán giải tích, Đại số tuyến tính, Python, PyTorch, LLMs và MLOps.\n3. **Kỹ sư An toàn thông tin (Cyber Security Specialist):** Mạng máy tính, Hệ điều hành, Mật mã học, Web Security, CTF.\n4. **Kỹ sư Vận hành & Đám mây (DevOps / Cloud Engineer):** Linux, Docker, Kubernetes, Terraform, AWS/GCP.\n5. **Quản lý Sản phẩm Công nghệ (Tech Product Manager):** Phân tích nghiệp vụ, Agile, UI/UX và dữ liệu người dùng.\n\n👉 Hãy vào trang **'Định hướng nghề nghiệp'** để làm bài tự đánh giá kỹ năng và tạo lộ trình học tập cá nhân hóa!"
+    }
+  ];
+
+  /**
+   * Mock Chatbot Engine - generates intelligent, structured responses
+   */
+  window.__mockChatbot = function(query) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) {
+      return {
+        status: "error",
+        error: "Tin nhắn không được để trống."
+      };
+    }
+
+    let bestMatch = null;
+    let maxScore = 0;
+
+    for (let i = 0; i < MOCK_CHAT_KNOWLEDGE.length; i++) {
+      const item = MOCK_CHAT_KNOWLEDGE[i];
+      let score = 0;
+      for (let j = 0; j < item.keywords.length; j++) {
+        const kw = item.keywords[j];
+        if (q.includes(kw)) {
+          score += kw.length;
+        }
+      }
+      if (score > maxScore) {
+        maxScore = score;
+        bestMatch = item;
+      }
+    }
+
+    let answer = "";
+    let sources = [];
+
+    if (bestMatch && maxScore > 0) {
+      answer = bestMatch.answer;
+      sources = [{
+        title: bestMatch.topic,
+        ref: bestMatch.ref,
+        type: bestMatch.type
+      }];
+    } else {
+      answer = "Chào bạn! Tôi là Trợ lý sinh viên AI ảo của StudentHub UET.\n\n" +
+        "Tôi có thể hỗ trợ bạn giải đáp các vấn đề về:\n" +
+        "• 🏫 **Các Bộ môn & Phòng thí nghiệm** Khoa CNTT - UET (vừa cập nhật từ fit.uet.vnu.edu.vn)\n" +
+        "• 🎓 **Chuẩn đầu ra & Điều kiện xét tốt nghiệp** (tín chỉ, GPA, ngoại ngữ)\n" +
+        "• 📝 **Đăng ký học phần, rút bớt môn, hủy môn**\n" +
+        "• 💰 **Học phí & Phương thức thanh toán**\n" +
+        "• 📑 **Thủ tục hành chính sinh viên một cửa** (giấy xác nhận, hoãn NVQS...)\n" +
+        "• 🎁 **Chính sách học bổng** khuyến khích & doanh nghiệp\n" +
+        "• 🚀 **Câu lạc bộ, Phòng TN & Cố vấn nghề nghiệp 1-on-1**\n\n" +
+        "📌 *Nếu câu hỏi cần can thiệp hồ sơ cá nhân, bạn vui lòng liên hệ:*\n" +
+        "- Phòng Đào tạo (P105-E3 | Email: daotao_dhcn@vnu.edu.vn)\n" +
+        "- Phòng Công tác Sinh viên (P104-E3 | Email: ctsv_dhcn@vnu.edu.vn)";
+      sources = [{
+        title: "Bộ phận Một cửa Trường ĐH Công nghệ - ĐHQGHN",
+        ref: "Phòng 104 & 105 Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+        type: "official-contact"
+      }];
+    }
+
+    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return {
+      status: "success",
+      conversationId: "conv_" + Date.now(),
+      message: {
+        sender: "assistant",
+        content: answer,
+        sources: sources,
+        createdAt: nowStr
+      }
+    };
+  };
+
+  // Wrap window.fetch to automatically provide Mock AI fallback for /api/chat/send
+  if (typeof window !== "undefined" && window.fetch) {
+    const originalFetch = window.fetch;
+    window.fetch = async function(resource, init) {
+      const urlStr = typeof resource === "string" ? resource : (resource ? resource.url : "");
+      if (urlStr && urlStr.includes("/api/chat/send")) {
+        try {
+          const resp = await originalFetch(resource, init);
+          if (resp && resp.ok) {
+            return resp;
+          }
+        } catch (err) {
+          console.warn("[Mock API] Python server not reachable, using Mock AI Assistant response...", err);
+        }
+
+        // Generate instant mock AI response
+        let userQuery = "";
+        try {
+          if (init && init.body) {
+            const parsed = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
+            userQuery = parsed.message || "";
+          }
+        } catch (e) {}
+
+        const mockRes = window.__mockChatbot(userQuery);
+        return new Response(JSON.stringify(mockRes), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
+      return originalFetch(resource, init);
+    };
+  }
+
   // Axios Custom Mock Adapter
   window.__mockAdapter = function(config) {
     const url = config.url || "";
     const method = (config.method || "get").toLowerCase();
+
+    // Mock chat endpoints if requested via axios
+    if (url.includes("/api/chat/send")) {
+      let q = "";
+      try {
+        const body = typeof config.data === "string" ? JSON.parse(config.data) : (config.data || {});
+        q = body.message || "";
+      } catch (e) {}
+      const mockChatRes = window.__mockChatbot(q);
+      return Promise.resolve({
+        data: mockChatRes,
+        status: 200,
+        statusText: "OK",
+        headers: { "content-type": "application/json" },
+        config: config,
+        request: {}
+      });
+    }
 
     // Forward real /api/ endpoints to Python Backend Server
     if (url.includes("/api/")) {
@@ -464,11 +670,12 @@
 
     return new Promise(function(resolve) {
       setTimeout(function() {
+        const isBlob = typeof Blob !== "undefined" && mockRes instanceof Blob;
         resolve({
           data: mockRes !== null ? mockRes : { data: [], status: 200, msgCode: "OK" },
           status: 200,
           statusText: "OK",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": isBlob ? (mockRes.type || "image/png") : "application/json" },
           config: config,
           request: {}
         });
@@ -476,5 +683,6 @@
     });
   };
 
-  console.log("%c[StudentHub Mock API] Ready! Mock adapter registered to window.__mockAdapter.", "color: #059669; font-weight: bold;");
+  console.log("%c[StudentHub Mock API] Ready! Mock adapter registered to window.__mockAdapter and window.__mockChatbot.", "color: #059669; font-weight: bold;");
 })();
+
