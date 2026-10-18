@@ -7,6 +7,9 @@ import urllib.parse
 import datetime
 
 import backend
+import career_backend
+
+career_backend.init_db()
 
 PORT = 8080
 TARGET_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -68,6 +71,9 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
 
         # Handle API Routes
         if path.startswith("/api/"):
+            career_response = career_backend.handle_get(path, query, student_code) if path.startswith("/api/career/") else None
+            if career_response is not None:
+                return self.send_json(*career_response)
             conn = backend.get_db()
             cur = conn.cursor()
 
@@ -383,6 +389,9 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
         body = self.read_json_body()
 
         if path.startswith("/api/"):
+            career_response = career_backend.handle_post(path, body, student_code) if path.startswith("/api/career/") else None
+            if career_response is not None:
+                return self.send_json(*career_response)
             conn = backend.get_db()
             cur = conn.cursor()
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

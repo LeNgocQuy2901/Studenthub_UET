@@ -16,7 +16,7 @@ import urllib.error
 import re
 import math
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studenthub.db")
+DB_PATH = os.environ.get("STUDENTHUB_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "studenthub.db")
 
 # ---------------------------------------------------------------------------
 # Database Initialization & Schema
