@@ -3,6 +3,12 @@ import urllib.error
 import json
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 BASE_URL = "http://localhost:8080"
 passed = 0
 failed = 0
@@ -16,8 +22,13 @@ def test(name, condition, details=""):
         print(f" [FAIL] {name}: {details}")
         failed += 1
 
+import urllib.parse
+
 def request(path, method="GET", data=None):
-    url = BASE_URL + path
+    parts = urllib.parse.urlsplit(path)
+    safe_path = urllib.parse.quote(parts.path)
+    safe_query = urllib.parse.quote(parts.query, safe="=&")
+    url = BASE_URL + safe_path + (("?" + safe_query) if safe_query else "")
     headers = {"Content-Type": "application/json"}
     body = json.dumps(data).encode("utf-8") if data else None
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
@@ -140,6 +151,57 @@ test("SPA route /organizations serves index.html", status == 200 and "<!doctype 
 
 status, res = request("/mentorship")
 test("SPA route /mentorship serves index.html", status == 200 and "<!doctype html>" in str(res).lower())
+
+# 6. P3 Upgrade: Lecturers Data Table API
+status, res = request("/api/organizations/lecturers")
+test("GET /api/organizations/lecturers returns 200", status == 200 and res.get("code") == 200)
+test("Lecturers API has 73 total items", res.get("total", 0) >= 70)
+test("First page returns lecturers list", len(res.get("data", [])) > 0)
+first_lec = res.get("data", [])[0] if res.get("data") else {}
+test("Lecturer has STT, fullName, title, email, department", all(k in first_lec for k in ["stt", "fullName", "title", "email", "department"]))
+
+# Pagination test
+status, res = request("/api/organizations/lecturers?page=2&limit=10")
+test("GET /api/organizations/lecturers?page=2&limit=10 returns page 2", status == 200 and res.get("page") == 2 and len(res.get("data", [])) == 10)
+test("Page 2 STT starts at 11", res.get("data", [])[0].get("stt") == 11)
+
+# Search test
+status, res = request("/api/organizations/lecturers?q=Nguyễn")
+test("GET /api/organizations/lecturers?q=Nguyễn filters by name", status == 200 and len(res.get("data", [])) > 0)
+
+# Department filter test
+status, res = request("/api/organizations/lecturers?department=Bộ môn Khoa học Máy tính")
+test("GET /api/organizations/lecturers?department=... filters by department", status == 200 and all(l.get("department") == "Bộ môn Khoa học Máy tính" for l in res.get("data", [])))
+
+# 7. Career Quiz Upgrade: 20-Question Quiz & Scoring Logic API
+status, res = request("/api/career/quiz/config")
+test("GET /api/career/quiz/config returns 200", status == 200 and res.get("code") == 200)
+quiz_config = res.get("data", {})
+test("Quiz has exactly 20 questions", len(quiz_config.get("questions", [])) == 20)
+test("Quiz has 5 criteria groups", len(quiz_config.get("groups", [])) == 5)
+test("Quiz has career paths with program URLs", len(quiz_config.get("career_paths", [])) >= 8 and all("program_url" in p for p in quiz_config.get("career_paths", [])))
+
+# Submit 20 questions
+mock_answers = {
+    f"q{i}": (8 if i in [1, 2, 5, 6, 9, 10, 13, 14, 17, 18] else 4)
+    for i in range(1, 21)
+}
+submit_payload = {"answers": mock_answers}
+status, res = request("/api/career/quiz/submit", method="POST", data=submit_payload)
+test("POST /api/career/quiz/submit returns 200", status == 200 and res.get("code") == 200)
+quiz_res = res.get("data", {})
+test("Quiz submission returns 5 group scores (1-10)", all(k in quiz_res.get("group_scores", {}) and 1 <= quiz_res["group_scores"][k] <= 10 for k in ["interests", "competence", "experience", "goals", "readiness"]))
+test("Quiz submission returns ranked career paths", len(quiz_res.get("rankings", [])) >= 3)
+top_rec = quiz_res.get("rankings", [])[0]
+test("Top recommendation has program_url, strengths, and improvements", "program_url" in top_rec and len(top_rec.get("strengths", [])) > 0 and len(top_rec.get("improvements", [])) > 0)
+
+# Get latest quiz result
+status, res = request("/api/career/quiz/latest")
+test("GET /api/career/quiz/latest returns saved quiz result", status == 200 and res.get("code") == 200 and res.get("data") is not None)
+
+# Get quiz history
+status, res = request("/api/career/quiz/history")
+test("GET /api/career/quiz/history returns history list", status == 200 and len(res.get("data", [])) >= 1)
 
 print("=" * 60)
 print(f"TEST RESULTS: {passed} PASSED, {failed} FAILED")

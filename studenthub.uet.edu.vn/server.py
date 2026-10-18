@@ -49,13 +49,21 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
                 return {}
         return {}
 
+    def parse_path_and_query(self):
+        raw = self.path
+        try:
+            raw = raw.encode("latin1").decode("utf-8")
+        except Exception:
+            pass
+        raw = urllib.parse.unquote(raw, encoding="utf-8")
+        parsed = urllib.parse.urlparse(raw)
+        return parsed.path, urllib.parse.parse_qs(parsed.query)
+
     # -----------------------------------------------------------------------
     # API Router - GET Requests
     # -----------------------------------------------------------------------
     def do_GET(self):
-        parsed_url = urllib.parse.urlparse(self.path)
-        path = parsed_url.path
-        query = urllib.parse.parse_qs(parsed_url.query)
+        path, query = self.parse_path_and_query()
         student_code = self.get_student_code()
 
         # Handle API Routes
@@ -115,6 +123,23 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
                         "courseMappings": json.loads(r["course_mappings"])
                     }
                 })
+
+            # P1: Career Quiz Config (20 Questions, 5 Groups, Career Matrix)
+            if path == "/api/career/quiz/config":
+                conn.close()
+                return self.send_json({"code": 200, "data": backend.get_career_quiz_config()})
+
+            # P1: Career Quiz Latest Result
+            if path == "/api/career/quiz/latest":
+                conn.close()
+                latest = backend.get_latest_career_quiz(student_code)
+                return self.send_json({"code": 200, "data": latest})
+
+            # P1: Career Quiz History
+            if path == "/api/career/quiz/history":
+                conn.close()
+                history = backend.get_career_quiz_history(student_code)
+                return self.send_json({"code": 200, "data": history})
 
             # P1: Get Student's Saved Skills Assessment
             if path == "/api/career/assessment":
@@ -192,6 +217,17 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
                     })
                 conn.close()
                 return self.send_json({"code": 200, "data": messages})
+
+            # P3: Organizations Lecturers Data Table
+            if path == "/api/organizations/lecturers" or path == "/api/lecturers":
+                keyword = query.get("q", [""])[0]
+                unit_id = query.get("unit", query.get("department", ["all"]))[0]
+                academic_title = query.get("title", ["all"])[0]
+                page = int(query.get("page", [1])[0])
+                limit = int(query.get("limit", [15])[0])
+                conn.close()
+                data = backend.get_lecturers(keyword=keyword, unit_id=unit_id, academic_title=academic_title, page=page, limit=limit)
+                return self.send_json({"code": 200, "data": data["items"], "total": data["total"], "page": data["page"], "limit": data["limit"], "totalPages": data["totalPages"]})
 
             # P3: Organizations & Labs List
             if path == "/api/organizations":
@@ -342,8 +378,7 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
     # API Router - POST Requests
     # -----------------------------------------------------------------------
     def do_POST(self):
-        parsed_url = urllib.parse.urlparse(self.path)
-        path = parsed_url.path
+        path, _ = self.parse_path_and_query()
         student_code = self.get_student_code()
         body = self.read_json_body()
 
@@ -351,6 +386,16 @@ class StudentHubServer(http.server.SimpleHTTPRequestHandler):
             conn = backend.get_db()
             cur = conn.cursor()
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # P1: Submit Career Quiz Assessment
+            if path == "/api/career/quiz/submit":
+                answers = body.get("answers", {})
+                if not answers:
+                    conn.close()
+                    return self.send_json({"code": 400, "message": "Câu trả lời không được để trống."}, 400)
+                conn.close()
+                result = backend.submit_career_quiz(student_code, answers)
+                return self.send_json({"code": 200, "data": result, "message": "Hoàn thành đánh giá định hướng nghề nghiệp!"})
 
             # P1: Save Skills Assessment
             if path == "/api/career/assessment":

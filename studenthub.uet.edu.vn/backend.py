@@ -14,6 +14,7 @@ import datetime
 import urllib.request
 import urllib.error
 import re
+import math
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studenthub.db")
 
@@ -146,6 +147,33 @@ def init_db():
         sender TEXT NOT NULL,
         content TEXT NOT NULL,
         sources TEXT,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS lecturers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        academic_title TEXT,
+        position TEXT,
+        email TEXT,
+        unit_id TEXT,
+        unit_name TEXT,
+        office TEXT,
+        phone TEXT
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS career_quiz_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_code TEXT NOT NULL,
+        answers TEXT NOT NULL,
+        group_scores TEXT NOT NULL,
+        composite_score REAL NOT NULL,
+        recommendations TEXT NOT NULL,
+        summary TEXT,
         created_at TEXT NOT NULL
     )
     """)
@@ -491,6 +519,63 @@ def seed_data_if_needed():
             except Exception as e:
                 print("Warning seeding crawled units:", e)
 
+    # Check lecturers
+    cur.execute("SELECT COUNT(*) FROM lecturers")
+    if cur.fetchone()[0] == 0:
+        crawled_path = os.path.join(os.path.dirname(__file__), "crawled_fit_units.json")
+        lecturers_data = []
+        if os.path.exists(crawled_path):
+            try:
+                with open(crawled_path, "r", encoding="utf-8") as f:
+                    crawled_data = json.load(f)
+                lec_idx = 0
+                for u in crawled_data:
+                    desc = u.get("description", "")
+                    unit_id = u.get("id")
+                    unit_name = u.get("name")
+                    unit_email = u.get("email", "fit@vnu.edu.vn")
+                    office = "Khoa CNTT, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    if "P311" in desc or "P313" in desc:
+                        office = "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    elif "P321" in desc:
+                        office = "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    elif "P315" in desc or "P317" in desc:
+                        office = "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    elif "319" in desc:
+                        office = "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    elif "406" in desc:
+                        office = "Phòng 406, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+                    elif u.get("location"):
+                        office = u.get("location")
+
+                    if "Giảng viên thuộc Bộ môn:" in desc:
+                        part = desc.split("Giảng viên thuộc Bộ môn:")[1]
+                        part = re.split(r'Liên hệ|Địa chỉ|Điện thoại', part)[0]
+                        regex = re.compile(r'(GS\.\s*TS\.|PGS\.\s*TS\.|PGS\.TS\.|GS\.|PGS\.|TS\.|T\s*S\.|ThS\.|NCS\.\s*ThS\.|NCS\.|KS\.|CN\.|HVCH\.)\s+([^\(\n\r]+?)(?:\s*\(([^\)]+)\))?(?=\s*(?:GS\.|PGS\.|TS\.|T\s*S\.|ThS\.|NCS\.|KS\.|CN\.|HVCH\.|Liên hệ|Địa chỉ|Điện thoại|$))')
+                        matches = regex.findall(part)
+                        for m in matches:
+                            lec_idx += 1
+                            deg = m[0].strip().replace("T S.", "TS.").replace("PGS.TS.", "PGS. TS.")
+                            name = m[1].strip()
+                            note = m[2].strip() if m[2] else ""
+                            lecturers_data.append((
+                                f"lec-{lec_idx:03d}",
+                                name,
+                                deg,
+                                note if note else "Giảng viên",
+                                unit_email,
+                                unit_id,
+                                unit_name,
+                                office,
+                                "(024) 3754 7813"
+                            ))
+                if lecturers_data:
+                    cur.executemany("""
+                        INSERT OR IGNORE INTO lecturers (id, name, academic_title, position, email, unit_id, unit_name, office, phone)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, lecturers_data)
+            except Exception as e:
+                print("Warning seeding lecturers:", e)
 
     # Check mentors
     cur.execute("SELECT COUNT(*) FROM mentors")
@@ -758,6 +843,687 @@ Yêu cầu trả lời:
             "createdAt": now
         }
     }, 200
+
+# ---------------------------------------------------------------------------
+# Section 2 & 3: Organizations Lecturers & Career Quiz Services
+# ---------------------------------------------------------------------------
+
+CAREER_QUIZ_GROUPS = [
+    {
+        "id": "group1",
+        "name": "Sở thích và lĩnh vực quan tâm",
+        "shortName": "Sở thích",
+        "icon": "💡",
+        "description": "Đánh giá mức độ yêu thích và đam mê của bạn đối với các mảng chuyên môn trong lĩnh vực CNTT.",
+        "scaleLabel": "Mức độ yêu thích (1 = Hoàn toàn không thích, 10 = Cực kỳ yêu thích / Đam mê)"
+    },
+    {
+        "id": "group2",
+        "name": "Năng lực và kiến thức chuyên môn",
+        "shortName": "Năng lực",
+        "icon": "🧠",
+        "description": "Tự đánh giá mức độ tự tin và nền tảng kiến thức học thuật, kỹ thuật đã tích lũy.",
+        "scaleLabel": "Mức độ tự tin / Năng lực (1 = Chưa có kiến thức / Yếu, 10 = Rất tự tin / Nắm rất vững)"
+    },
+    {
+        "id": "group3",
+        "name": "Kỹ năng và kinh nghiệm thực tế",
+        "shortName": "Kinh nghiệm",
+        "icon": "🛠️",
+        "description": "Đánh giá trải nghiệm thực tế với công cụ, dự án thực chiến, làm việc nhóm và sửa lỗi.",
+        "scaleLabel": "Mức độ kinh nghiệm (1 = Chưa từng làm / Mới tìm hiểu, 10 = Rất giàu kinh nghiệm / Thành thạo)"
+    },
+    {
+        "id": "group4",
+        "name": "Mục tiêu và định hướng cá nhân",
+        "shortName": "Mục tiêu",
+        "icon": "🎯",
+        "description": "Mức độ mong muốn gắn bó và phát triển sự nghiệp lâu dài theo từng vị trí nghề nghiệp.",
+        "scaleLabel": "Mức độ mong muốn (1 = Không có định hướng, 10 = Ưu tiên số một / Quyết tâm theo đuổi)"
+    },
+    {
+        "id": "group5",
+        "name": "Xu hướng nghề nghiệp và yêu cầu công việc",
+        "shortName": "Sẵn sàng",
+        "icon": "🚀",
+        "description": "Đánh giá khả năng tự học, đáp ứng văn hóa doanh nghiệp, deadline và tiêu chuẩn tuyển dụng.",
+        "scaleLabel": "Mức độ sẵn sàng (1 = Hoàn toàn chưa sẵn sàng, 10 = Sẵn sàng đáp ứng xuất sắc)"
+    }
+]
+
+CAREER_QUIZ_QUESTIONS = [
+    # Nhóm 1: Sở thích và lĩnh vực quan tâm (4 câu)
+    {
+        "id": "q1",
+        "groupId": "group1",
+        "order": 1,
+        "title": "Phát triển Hệ thống & Phần mềm Backend",
+        "prompt": "Mức độ yêu thích của bạn đối với việc lập trình logic phía máy chủ, thiết kế kiến trúc API và tối ưu cơ sở dữ liệu?",
+        "hint": "Bao gồm phát triển web backend, microservices, cơ sở dữ liệu lớn và các dịch vụ mạng.",
+        "weight": 1.0,
+        "roles": {"backend": 1.0, "frontend_fullstack": 0.6}
+    },
+    {
+        "id": "q2",
+        "groupId": "group1",
+        "order": 2,
+        "title": "Giao diện Người dùng & Trải nghiệm UX",
+        "prompt": "Mức độ yêu thích của bạn đối với việc xây dựng giao diện ứng dụng web/mobile trực quan, thẩm mỹ và tối ưu trải nghiệm tương tác?",
+        "hint": "Bao gồm thiết kế giao diện UI/UX, lập trình Frontend hiện đại và tương tác người - máy.",
+        "weight": 1.0,
+        "roles": {"uiux_designer": 1.0, "frontend_fullstack": 0.9}
+    },
+    {
+        "id": "q3",
+        "groupId": "group1",
+        "order": 3,
+        "title": "Trí tuệ nhân tạo (AI) & Khoa học Dữ liệu",
+        "prompt": "Mức độ yêu thích của bạn đối với việc nghiên cứu thuật toán Học máy (Machine Learning), Xử lý ngôn ngữ tự nhiên và phân tích dữ liệu?",
+        "hint": "Bao gồm huấn luyện mô hình AI, Deep Learning, khai phá dữ liệu lớn và trực quan hóa dữ liệu.",
+        "weight": 1.0,
+        "roles": {"ai_engineer": 1.0, "data_scientist": 0.95, "academic_research": 0.7}
+    },
+    {
+        "id": "q4",
+        "groupId": "group1",
+        "order": 4,
+        "title": "An ninh mạng & Kiểm thử chất lượng phần mềm",
+        "prompt": "Mức độ yêu thích của bạn với việc điều tra lỗ hổng bảo mật, phân tích rủi ro an toàn mạng hoặc kiểm tra chất lượng phần mềm?",
+        "hint": "Bao gồm an toàn mạng (NetSec), mật mã học, kiểm thử tự động (Automation Test) và đảm bảo chất lượng QA/QC.",
+        "weight": 1.0,
+        "roles": {"cybersecurity": 1.0, "qa_tester": 0.9}
+    },
+
+    # Nhóm 2: Năng lực và kiến thức chuyên môn (4 câu)
+    {
+        "id": "q5",
+        "groupId": "group2",
+        "order": 5,
+        "title": "Tư duy Thuật toán & Lập trình Cốt lõi",
+        "prompt": "Mức độ tự tin của bạn về tư duy lập trình căn bản, cấu trúc dữ liệu và giải thuật (CTDL&GT) và lập trình hướng đối tượng (OOP)?",
+        "hint": "Bao gồm kiến thức nền tảng từ các môn INT1004, INT1006, INT2204 tại UET.",
+        "weight": 1.0,
+        "roles": {"backend": 0.9, "ai_engineer": 0.85, "frontend_fullstack": 0.8, "academic_research": 0.9}
+    },
+    {
+        "id": "q6",
+        "groupId": "group2",
+        "order": 6,
+        "title": "Toán học, Thống kê & Tư duy Logic",
+        "prompt": "Mức độ nắm vững và vận dụng các kiến thức Toán học (Giải tích, Đại số tuyến tính, Xác suất thống kê, Toán rời rạc) vào bài toán kỹ thuật?",
+        "hint": "Nền tảng cốt lõi cho AI, Khoa học dữ liệu, Mật mã học và Nghiên cứu khoa học.",
+        "weight": 1.0,
+        "roles": {"ai_engineer": 1.0, "data_scientist": 1.0, "academic_research": 0.95, "cybersecurity": 0.7}
+    },
+    {
+        "id": "q7",
+        "groupId": "group2",
+        "order": 7,
+        "title": "Cơ sở dữ liệu & Quản lý Dữ liệu",
+        "prompt": "Mức độ hiểu biết của bạn về thiết kế lược đồ quan hệ CSDL, viết truy vấn SQL phức tạp và hiểu biết về NoSQL/Data Warehouse?",
+        "hint": "Bao gồm kiến thức môn INT3110 (CSDL nâng cao) và các hệ QT CSDL PostgreSQL/MySQL/MongoDB.",
+        "weight": 1.0,
+        "roles": {"backend": 0.95, "data_scientist": 0.9, "frontend_fullstack": 0.6}
+    },
+    {
+        "id": "q8",
+        "groupId": "group2",
+        "order": 8,
+        "title": "Hệ điều hành, Mạng & Kiến trúc Hệ thống",
+        "prompt": "Mức độ hiểu biết của bạn về nguyên lý hệ điều hành (tiến trình, bộ nhớ), giao thức mạng (TCP/IP, HTTP) và an toàn hệ thống?",
+        "hint": "Bao gồm kiến thức các môn INT2211 (Hệ điều hành), INT3202 (Mạng máy tính), INT3505 (An toàn thông tin).",
+        "weight": 1.0,
+        "roles": {"cybersecurity": 1.0, "backend": 0.85, "academic_research": 0.75}
+    },
+
+    # Nhóm 3: Kỹ năng và kinh nghiệm thực tế (4 câu)
+    {
+        "id": "q9",
+        "groupId": "group3",
+        "order": 9,
+        "title": "Thành thạo Ngôn ngữ & Framework Thực chiến",
+        "prompt": "Mức độ thành thạo của bạn với ít nhất một ngôn ngữ và hệ sinh thái thư viện/framework phổ biến trong ngành CNTT?",
+        "hint": "Ví dụ: Python/PyTorch/FastAPI, Java/Spring Boot, JavaScript/TypeScript/React, C/C++, C#/.NET...",
+        "weight": 1.0,
+        "roles": {"backend": 0.9, "frontend_fullstack": 0.9, "ai_engineer": 0.85, "data_scientist": 0.8}
+    },
+    {
+        "id": "q10",
+        "groupId": "group3",
+        "order": 10,
+        "title": "Công cụ Phát triển, Kiểm thử & Quản lý Phiên bản",
+        "prompt": "Mức độ kinh nghiệm sử dụng Git (branching/pull request), Docker container, viết Unit Test hoặc sử dụng công cụ kiểm thử phần mềm?",
+        "hint": "Bao gồm Git/GitHub, Docker, JUnit, PyTest, Selenium, Postman, CI/CD pipeline cơ bản.",
+        "weight": 1.0,
+        "roles": {"qa_tester": 1.0, "backend": 0.85, "frontend_fullstack": 0.8}
+    },
+    {
+        "id": "q11",
+        "groupId": "group3",
+        "order": 11,
+        "title": "Kinh nghiệm Dự án Phần mềm hoặc Đề tài Nghiên cứu",
+        "prompt": "Bạn đã từng trực tiếp tham gia xây dựng sản phẩm phần mềm hoàn chỉnh, làm bài tập lớn có người dùng hoặc tham gia lab nghiên cứu?",
+        "hint": "Phân biệt giữa kiến thức lý thuyết thuần túy và kinh nghiệm làm sản phẩm thực tế.",
+        "weight": 1.0,
+        "roles": {"backend": 0.85, "frontend_fullstack": 0.85, "ai_engineer": 0.8, "uiux_designer": 0.8, "academic_research": 0.85}
+    },
+    {
+        "id": "q12",
+        "groupId": "group3",
+        "order": 12,
+        "title": "Khả năng Phát hiện Lỗi (Debugging) & Xử lý Sự cố",
+        "prompt": "Mức độ tự tin của bạn khi định vị lỗi phần mềm, đọc log hệ thống, tái hiện lỗi biên (edge cases) và tìm nguyên nhân gốc rễ (root cause)?",
+        "hint": "Kỹ năng đặc biệt quan trọng cho Kỹ sư Kiểm thử QA, Kỹ sư Hệ thống và An toàn thông tin.",
+        "weight": 1.0,
+        "roles": {"qa_tester": 1.0, "cybersecurity": 0.9, "backend": 0.8}
+    },
+
+    # Nhóm 4: Mục tiêu và định hướng cá nhân (4 câu)
+    {
+        "id": "q13",
+        "groupId": "group4",
+        "order": 13,
+        "title": "Mục tiêu trở thành Kỹ sư Backend / Cloud System",
+        "prompt": "Mức độ mong muốn của bạn trong việc theo đuổi sự nghiệp Backend Developer, Kỹ sư Hệ thống phân tán hoặc Cloud / DevOps Engineer?",
+        "hint": "Tập trung xây dựng nền móng hệ thống vững chắc cho các ứng dụng quy mô lớn.",
+        "weight": 1.0,
+        "roles": {"backend": 1.0}
+    },
+    {
+        "id": "q14",
+        "groupId": "group4",
+        "order": 14,
+        "title": "Mục tiêu trở thành Kỹ sư Frontend / Full-stack hoặc UI/UX",
+        "prompt": "Mức độ mong muốn phát triển chuyên sâu hướng Frontend / Full-stack Developer hoặc Chuyên viên Thiết kế Giao diện & Trải nghiệm (UI/UX)?",
+        "hint": "Trực tiếp tương tác với người dùng cuối, tạo ra sản phẩm hoàn chỉnh và sinh động.",
+        "weight": 1.0,
+        "roles": {"frontend_fullstack": 1.0, "uiux_designer": 0.9}
+    },
+    {
+        "id": "q15",
+        "groupId": "group4",
+        "order": 15,
+        "title": "Mục tiêu trở thành Kỹ sư AI hoặc Nhà Khoa học Dữ liệu",
+        "prompt": "Mức độ mong muốn của bạn trong việc trở thành Kỹ sư AI (Machine Learning / Deep Learning) hoặc Data Scientist / Data Analyst?",
+        "hint": "Làm chủ các công nghệ đón đầu tương lai và khai thác giá trị từ dữ liệu lớn.",
+        "weight": 1.0,
+        "roles": {"ai_engineer": 1.0, "data_scientist": 1.0}
+    },
+    {
+        "id": "q16",
+        "groupId": "group4",
+        "order": 16,
+        "title": "Mục tiêu Kỹ sư An toàn thông tin, QA hoặc Nghiên cứu Học thuật",
+        "prompt": "Mức độ bạn mong muốn theo đuổi hướng Kỹ sư An ninh mạng (Security), Kỹ sư Kiểm thử (QA/QC) hoặc tiếp tục học cao học / Nghiên cứu R&D?",
+        "hint": "Bảo vệ an ninh số, bảo đảm chất lượng phần mềm hoặc đóng góp bài báo khoa học quốc tế.",
+        "weight": 1.0,
+        "roles": {"cybersecurity": 0.95, "qa_tester": 0.95, "academic_research": 0.95}
+    },
+
+    # Nhóm 5: Xu hướng nghề nghiệp và yêu cầu công việc (4 câu)
+    {
+        "id": "q17",
+        "groupId": "group5",
+        "order": 17,
+        "title": "Khả năng Tự học Công nghệ Mới & Tiếng Anh Kỹ thuật",
+        "prompt": "Mức độ sẵn sàng và thói quen chủ động đọc tài liệu kỹ thuật tiếng Anh, tự học các thư viện/công cụ mới khi công việc yêu cầu?",
+        "hint": "Ngành CNTT biến đổi liên tục; năng lực tự học là yếu tố sống còn cho mọi kỹ sư.",
+        "weight": 1.0,
+        "roles": {"all": 1.0}
+    },
+    {
+        "id": "q18",
+        "groupId": "group5",
+        "order": 18,
+        "title": "Thích ứng Quy trình Dự án Thực tế & Áp lực Tiến độ",
+        "prompt": "Mức độ sẵn sàng làm việc theo quy trình chuyên nghiệp (Agile/Scrum, Sprint), phối hợp đồng đội và chịu được áp lực deadline?",
+        "hint": "Khả năng giao tiếp kỹ thuật, phối hợp nhóm và kỷ luật hoàn thành nhiệm vụ.",
+        "weight": 1.0,
+        "roles": {"all": 1.0}
+    },
+    {
+        "id": "q19",
+        "groupId": "group5",
+        "order": 19,
+        "title": "Hiểu biết về Thị trường Tuyển dụng & Tiêu chuẩn Ngành",
+        "prompt": "Mức độ bạn đã chủ động tìm hiểu các vị trí tuyển dụng thực tập sinh/kỹ sư fresher tại các công ty công nghệ (FPT, Viettel, VNG, VNPT...)?",
+        "hint": "Nắm bắt các yêu cầu phỏng vấn kỹ thuật, chuẩn bị portfolio dự án và lộ trình ứng tuyển.",
+        "weight": 1.0,
+        "roles": {"all": 1.0}
+    },
+    {
+        "id": "q20",
+        "groupId": "group5",
+        "order": 20,
+        "title": "Tính Kiên trì & Giải quyết Sự cố Phức tạp",
+        "prompt": "Khả năng kiên nhẫn khi đối mặt với lỗi kỹ thuật khó, nghiên cứu nhiều phương án thay thế mà không nản lòng?",
+        "hint": "Tư duy bền bỉ, không ngại thử sai và tinh thần cải tiến liên tục trong công việc.",
+        "weight": 1.0,
+        "roles": {"all": 1.0}
+    }
+]
+
+CAREER_PATHS = [
+    {
+        "id": "backend",
+        "title": "Kỹ sư Phát triển Phần mềm Backend (Backend Developer)",
+        "category": "Kỹ thuật Phần mềm",
+        "description": "Phát triển hệ thống máy chủ, thiết kế kiến trúc API, tối ưu hóa cơ sở dữ liệu lớn và các dịch vụ microservices hiệu năng cao.",
+        "strengths": ["Tư duy kiến trúc hệ thống và API", "Nền tảng CSDL & thuật toán", "Thao tác với dịch vụ backend"],
+        "improvements": ["Tối ưu truy vấn CSDL phân tán", "Quản lý container Docker/K8s", "Kiểm thử tự động microservices"],
+        "whyRecommended": "Bạn thể hiện sự hứng thú nổi bật với hệ thống logic máy chủ và cơ sở dữ liệu.",
+        "courses": [
+            {"code": "INT3306", "name": "Phát triển ứng dụng Web", "type": "Cốt lõi"},
+            {"code": "INT3110", "name": "Cơ sở dữ liệu nâng cao", "type": "Cốt lõi"},
+            {"code": "INT2204", "name": "Lập trình hướng đối tượng", "type": "Cốt lõi"},
+            {"code": "INT2211", "name": "Hệ điều hành", "type": "Bổ trợ"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Các Hệ thống Thông tin & Bộ môn Công nghệ Phần mềm"
+    },
+    {
+        "id": "frontend_fullstack",
+        "title": "Kỹ sư Phát triển Frontend / Full-stack Developer",
+        "category": "Kỹ thuật Phần mềm",
+        "description": "Hiện thực hóa giao diện tương tác người dùng hiện đại, kết nối dịch vụ API, đảm bảo trải nghiệm đa nền tảng mượt mà.",
+        "strengths": ["Cảm quan giao diện & trải nghiệm người dùng", "Khả năng xây dựng ứng dụng web tương tác", "Làm việc với công nghệ web hiện đại"],
+        "improvements": ["Quản lý state phức tạp trong SPA", "Tối ưu hóa hiệu năng render & SEO", "Kiến trúc tích hợp Full-stack"],
+        "whyRecommended": "Bạn có niềm đam mê xây dựng sản phẩm trực quan và hướng tới người dùng cuối.",
+        "courses": [
+            {"code": "INT3306", "name": "Phát triển ứng dụng Web", "type": "Cốt lõi"},
+            {"code": "INT2204", "name": "Lập trình hướng đối tượng", "type": "Cốt lõi"},
+            {"code": "INT3202", "name": "Mạng máy tính", "type": "Bổ trợ"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Công nghệ Phần mềm & PTN Tương tác Người – Máy (HCI Lab)"
+    },
+    {
+        "id": "ai_engineer",
+        "title": "Kỹ sư Trí tuệ Nhân tạo (AI / Machine Learning Engineer)",
+        "category": "Khoa học Máy tính & AI",
+        "description": "Nghiên cứu, huấn luyện và tích hợp các mô hình Học máy, Học sâu (Deep Learning), Xử lý ngôn ngữ tự nhiên và Thị giác máy tính.",
+        "strengths": ["Nền tảng Toán học & tư duy xác suất thống kê", "Khả năng nghiên cứu thuật toán học máy", "Đam mê công nghệ đón đầu"],
+        "improvements": ["Triển khai mô hình AI lên môi trường Production (MLOps)", "Kỹ thuật Fine-tuning mô hình ngôn ngữ lớn (LLM)", "Tối ưu hóa tính toán trên GPU"],
+        "whyRecommended": "Sự yêu thích công nghệ AI kết hợp cùng tư duy toán học và giải thuật là tiền đề vững chắc cho hướng đi này.",
+        "courses": [
+            {"code": "INT3401", "name": "Trí tuệ nhân tạo", "type": "Cốt lõi"},
+            {"code": "MAT1101", "name": "Xác suất thống kê", "type": "Cốt lõi"},
+            {"code": "MAT1093", "name": "Giải tích", "type": "Cốt lõi"},
+            {"code": "INT1006", "name": "Cấu trúc dữ liệu và giải thuật", "type": "Cốt lõi"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Khoa học Máy tính & PTN Trí tuệ Nhân tạo (AILab)"
+    },
+    {
+        "id": "data_scientist",
+        "title": "Chuyên viên Khoa học Dữ liệu & Phân tích (Data Scientist)",
+        "category": "Dữ liệu & Phân tích",
+        "description": "Khai phá dữ liệu lớn, xây dựng mô hình phân tích dự báo và trực quan hóa dữ liệu để giải quyết bài toán thực tế.",
+        "strengths": ["Tư duy thống kê & trực giác dữ liệu", "Khai thác và làm sạch dữ liệu lớn", "Trực quan hóa và kể chuyện bằng dữ liệu"],
+        "improvements": ["Công cụ Big Data (Spark, Kafka)", "Kỹ năng phân tích đa biến nâng cao", "Áp dụng mô hình dự báo vào bài toán doanh nghiệp"],
+        "whyRecommended": "Sự kết hợp giữa tư duy thống kê và khả năng phân tích lược đồ dữ liệu tạo lợi thế vượt trội.",
+        "courses": [
+            {"code": "MAT1101", "name": "Xác suất thống kê", "type": "Cốt lõi"},
+            {"code": "INT3110", "name": "Cơ sở dữ liệu nâng cao", "type": "Cốt lõi"},
+            {"code": "INT3401", "name": "Trí tuệ nhân tạo", "type": "Bổ trợ"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Các Hệ thống Thông tin & PTN Công nghệ Tri thức (KTLab)"
+    },
+    {
+        "id": "cybersecurity",
+        "title": "Kỹ sư An ninh Mạng & An toàn Thông tin",
+        "category": "An ninh Mạng & Mạng máy tính",
+        "description": "Bảo vệ hạ tầng thông tin, rà quét lỗ hổng bảo mật, kiểm thử xâm nhập (Pentest), phân tích mã độc và ứng phó sự cố.",
+        "strengths": ["Hiểu biết sâu về mạng & hệ điều hành", "Tư duy phản biện bảo mật", "Khả năng phân tích và cô lập sự cố"],
+        "improvements": ["Thực hành Pentest & CTF thực chiến", "Mật mã học ứng dụng và bảo mật Cloud", "Phân tích mã độc nâng cao"],
+        "whyRecommended": "Sự nhạy bén với các nguy cơ an toàn mạng và hiểu biết hệ thống giúp bạn rất phù hợp với vị trí này.",
+        "courses": [
+            {"code": "INT3505", "name": "An toàn và bảo mật thông tin", "type": "Cốt lõi"},
+            {"code": "INT3202", "name": "Mạng máy tính", "type": "Cốt lõi"},
+            {"code": "INT2211", "name": "Hệ điều hành", "type": "Cốt lõi"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Mạng và Truyền thông Máy tính & PTN An toàn Thông tin (NetSec Lab)"
+    },
+    {
+        "id": "qa_tester",
+        "title": "Kỹ sư Đảm bảo Chất lượng & Kiểm thử Phần mềm (QA)",
+        "category": "Đảm bảo Chất lượng Phần mềm",
+        "description": "Xây dựng chiến lược kiểm thử, phát triển khung kiểm thử tự động (Automation Test), phát hiện sớm lỗi biên và bảo đảm chất lượng phát hành.",
+        "strengths": ["Tính tỉ mỉ và khả năng phát hiện lỗi biên", "Tư duy quy trình và tiêu chuẩn chất lượng", "Kỹ năng định vị nguyên nhân sự cố"],
+        "improvements": ["Xây dựng Automation Framework (Selenium/Playwright)", "Kiểm thử hiệu năng (JMeter/LoadRunner)", "Tích hợp kiểm thử vào CI/CD pipeline"],
+        "whyRecommended": "Khả năng tư duy logic chi tiết và sự cẩn trọng là phẩm chất cốt lõi của một chuyên gia QA xuất sắc.",
+        "courses": [
+            {"code": "INT2204", "name": "Lập trình hướng đối tượng", "type": "Cốt lõi"},
+            {"code": "INT3306", "name": "Phát triển ứng dụng Web", "type": "Bổ trợ"}
+        ],
+        "programRoute": "/information/program",
+        "department": "Bộ môn Công nghệ Phần mềm & PTN Đảm bảo Chất lượng Phần mềm"
+    },
+    {
+        "id": "uiux_designer",
+        "title": "Chuyên viên Thiết kế Giao diện & Trải nghiệm (UI/UX)",
+        "category": "Thiết kế & Tương tác Người - Máy",
+        "description": "Nghiên cứu hành vi người dùng, thiết kế wireframe, prototype tương tác cao và xây dựng Design System trực quan cho sản phẩm số.",
+        "strengths": ["Thấu cảm người dùng (User Empathy)", "Tư duy thẩm mỹ và cấu trúc thị giác", "Khả năng truyền tải ý tưởng sản phẩm"],
+        "improvements": ["Nghiên cứu trải nghiệm người dùng định lượng (Usability Metrics)", "Kỹ năng Design System nâng cao trên Figma", "Hiểu biết kỹ thuật Frontend để phối hợp nhóm"],
+        "whyRecommended": "Khả năng đồng cảm với người dùng và sự yêu thích thiết kế mở ra cơ hội lớn trong lĩnh vực UI/UX.",
+        "courses": [
+            {"code": "INT3306", "name": "Phát triển ứng dụng Web", "type": "Cốt lõi"},
+            {"code": "INT2204", "name": "Lập trình hướng đối tượng", "type": "Bổ trợ"}
+        ],
+        "programRoute": "/information/program",
+        "department": "PTN Tương tác Người – Máy (HCI Lab)"
+    },
+    {
+        "id": "academic_research",
+        "title": "Nhà Nghiên cứu Khoa học / Học thuật (R&D)",
+        "category": "Học thuật & Nghiên cứu",
+        "description": "Đào sâu nền tảng lý thuyết, đề xuất thuật toán mới, công bố công trình tại các hội nghị quốc tế và chuẩn bị học bậc sau đại học.",
+        "strengths": ["Khả năng tự học và nghiên cứu tài liệu độc lập", "Nền tảng Toán học và thuật toán chuyên sâu", "Tính bền bỉ với bài toán mở"],
+        "improvements": ["Kỹ năng viết bài báo khoa học chuẩn IEEE/ACM", "Sử dụng công cụ nghiên cứu & LaTeX thành thạo", "Kết nối với các Giáo sư và Lab nghiên cứu"],
+        "whyRecommended": "Sự say mê tìm tòi lý thuyết kết hợp nền tảng toán học mở ra con đường học thuật đầy triển vọng.",
+        "courses": [
+            {"code": "MAT1093", "name": "Giải tích", "type": "Cốt lõi"},
+            {"code": "MAT1101", "name": "Xác suất thống kê", "type": "Cốt lõi"},
+            {"code": "INT1006", "name": "Cấu trúc dữ liệu và giải thuật", "type": "Cốt lõi"},
+            {"code": "INT3401", "name": "Trí tuệ nhân tạo", "type": "Cốt lõi"}
+        ],
+        "programRoute": "/information/program",
+        "department": "5 Bộ môn Khoa CNTT & 10 Phòng Thí nghiệm Trọng điểm"
+    }
+]
+
+def get_lecturers(keyword="", unit_id="all", academic_title="all", page=1, limit=15):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    query = "SELECT * FROM lecturers WHERE 1=1"
+    params = []
+    
+    if unit_id and unit_id != "all":
+        query += " AND (unit_id = ? OR unit_name = ?)"
+        params.extend([unit_id, unit_id])
+        
+    if academic_title and academic_title != "all":
+        if academic_title == "gs_pgs":
+            query += " AND (academic_title LIKE '%GS%' OR academic_title LIKE '%PGS%')"
+        elif academic_title == "ts":
+            query += " AND academic_title LIKE '%TS%' AND academic_title NOT LIKE '%PGS%' AND academic_title NOT LIKE '%GS%'"
+        elif academic_title == "ths":
+            query += " AND academic_title LIKE '%ThS%'"
+        elif academic_title == "other":
+            query += " AND academic_title NOT LIKE '%TS%' AND academic_title NOT LIKE '%GS%' AND academic_title NOT LIKE '%ThS%'"
+            
+    if keyword:
+        kw = f"%{keyword.strip().lower()}%"
+        query += " AND (LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(academic_title) LIKE ? OR LOWER(position) LIKE ? OR LOWER(unit_name) LIKE ?)"
+        params.extend([kw, kw, kw, kw, kw])
+        
+    count_query = query.replace("SELECT *", "SELECT COUNT(*)", 1)
+    cur.execute(count_query, params)
+    total = cur.fetchone()[0]
+    
+    query += " ORDER BY unit_id ASC, id ASC"
+    
+    page = max(1, int(page))
+    limit = max(1, min(100, int(limit)))
+    offset = (page - 1) * limit
+    
+    query += " LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    
+    items = []
+    for idx, r in enumerate(rows):
+        stt = offset + idx + 1
+        items.append({
+            "id": r["id"],
+            "stt": stt,
+            "name": r["name"],
+            "fullName": r["name"],
+            "academicTitle": r["academic_title"] if r["academic_title"] else "—",
+            "title": r["academic_title"] if r["academic_title"] else "—",
+            "position": r["position"] if r["position"] else "—",
+            "email": r["email"] if r["email"] else "—",
+            "unitId": r["unit_id"],
+            "unitName": r["unit_name"],
+            "department": r["unit_name"],
+            "office": r["office"] if r["office"] else "—",
+            "phone": r["phone"] if r["phone"] else "—"
+        })
+        
+    conn.close()
+    
+    total_pages = math.ceil(total / limit) if total > 0 else 1
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "totalPages": total_pages
+    }
+
+def get_career_quiz_config():
+    paths = []
+    for p in CAREER_PATHS:
+        item = dict(p)
+        item["name"] = item.get("title", "")
+        item["program_url"] = item.get("programRoute", "/information/program")
+        item["programUrl"] = item.get("programRoute", "/information/program")
+        paths.append(item)
+
+    return {
+        "groups": CAREER_QUIZ_GROUPS,
+        "questions": CAREER_QUIZ_QUESTIONS,
+        "careerPaths": paths,
+        "career_paths": paths,
+        "likertLabels": [
+            {"value": 1, "label": "1 - Hoàn toàn không phù hợp / Chưa có kiến thức"},
+            {"value": 2, "label": "2 - Mức độ rất thấp"},
+            {"value": 3, "label": "3 - Mức độ rất thấp"},
+            {"value": 4, "label": "4 - Mức độ cơ bản"},
+            {"value": 5, "label": "5 - Mức độ cơ bản"},
+            {"value": 6, "label": "6 - Mức độ khá"},
+            {"value": 7, "label": "7 - Mức độ khá"},
+            {"value": 8, "label": "8 - Mức độ cao"},
+            {"value": 9, "label": "9 - Mức độ cao"},
+            {"value": 10, "label": "10 - Mức độ rất cao / Rất phù hợp"}
+        ]
+    }
+
+def calculate_career_quiz(answers):
+    groups = {
+        "group1": ["q1", "q2", "q3", "q4"],
+        "group2": ["q5", "q6", "q7", "q8"],
+        "group3": ["q9", "q10", "q11", "q12"],
+        "group4": ["q13", "q14", "q15", "q16"],
+        "group5": ["q17", "q18", "q19", "q20"]
+    }
+    
+    group_scores = {}
+    for gid, qlist in groups.items():
+        vals = [float(answers.get(qid, 5)) for qid in qlist]
+        avg = sum(vals) / len(vals)
+        group_scores[gid] = round(avg, 1)
+
+    group_scores["interests"] = group_scores.get("group1", 5.0)
+    group_scores["competence"] = group_scores.get("group2", 5.0)
+    group_scores["experience"] = group_scores.get("group3", 5.0)
+    group_scores["goals"] = group_scores.get("group4", 5.0)
+    group_scores["readiness"] = group_scores.get("group5", 5.0)
+
+    q = lambda qid: float(answers.get(qid, 5))
+    workplace_score = group_scores["group5"]
+
+    results = []
+    
+    # 1. Backend
+    b_interest = round(0.5 * q("q1") + 0.5 * q("q13"), 1)
+    b_readiness = round(0.25 * q("q5") + 0.25 * q("q7") + 0.25 * q("q9") + 0.25 * q("q10"), 1)
+    b_match = round(0.40 * b_interest + 0.40 * b_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[0], "interest": b_interest, "readiness": b_readiness, "matchScore": b_match})
+
+    # 2. Frontend / Full-stack
+    f_interest = round(0.5 * q("q2") + 0.5 * q("q14"), 1)
+    f_readiness = round(0.3 * q("q5") + 0.35 * q("q9") + 0.35 * q("q11"), 1)
+    f_match = round(0.40 * f_interest + 0.40 * f_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[1], "interest": f_interest, "readiness": f_readiness, "matchScore": f_match})
+
+    # 3. AI Engineer
+    ai_interest = round(0.5 * q("q3") + 0.5 * q("q15"), 1)
+    ai_readiness = round(0.35 * q("q6") + 0.35 * q("q5") + 0.3 * q("q9"), 1)
+    ai_match = round(0.40 * ai_interest + 0.40 * ai_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[2], "interest": ai_interest, "readiness": ai_readiness, "matchScore": ai_match})
+
+    # 4. Data Scientist
+    ds_interest = round(0.5 * q("q3") + 0.5 * q("q15"), 1)
+    ds_readiness = round(0.4 * q("q6") + 0.35 * q("q7") + 0.25 * q("q11"), 1)
+    ds_match = round(0.40 * ds_interest + 0.40 * ds_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[3], "interest": ds_interest, "readiness": ds_readiness, "matchScore": ds_match})
+
+    # 5. Cybersecurity
+    sec_interest = round(0.5 * q("q4") + 0.5 * q("q16"), 1)
+    sec_readiness = round(0.4 * q("q8") + 0.3 * q("q12") + 0.3 * q("q6"), 1)
+    sec_match = round(0.40 * sec_interest + 0.40 * sec_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[4], "interest": sec_interest, "readiness": sec_readiness, "matchScore": sec_match})
+
+    # 6. QA / Automation Tester
+    qa_interest = round(0.5 * q("q4") + 0.5 * q("q16"), 1)
+    qa_readiness = round(0.35 * q("q10") + 0.35 * q("q12") + 0.3 * q("q5"), 1)
+    qa_match = round(0.40 * qa_interest + 0.40 * qa_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[5], "interest": qa_interest, "readiness": qa_readiness, "matchScore": qa_match})
+
+    # 7. UI/UX Designer
+    ui_interest = round(0.5 * q("q2") + 0.5 * q("q14"), 1)
+    ui_readiness = round(0.4 * q("q11") + 0.3 * q("q18") + 0.3 * q("q17"), 1)
+    ui_match = round(0.40 * ui_interest + 0.40 * ui_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[6], "interest": ui_interest, "readiness": ui_readiness, "matchScore": ui_match})
+
+    # 8. Academic Research
+    res_interest = round(0.4 * q("q3") + 0.6 * q("q16"), 1)
+    res_readiness = round(0.4 * q("q6") + 0.3 * q("q5") + 0.3 * q("q17"), 1)
+    res_match = round(0.40 * res_interest + 0.40 * res_readiness + 0.20 * workplace_score, 1)
+    results.append({**CAREER_PATHS[7], "interest": res_interest, "readiness": res_readiness, "matchScore": res_match})
+
+    results.sort(key=lambda x: x["matchScore"], reverse=True)
+
+    for idx, c in enumerate(results):
+        c["rank"] = idx + 1
+        c["name"] = c.get("title", "")
+        c["score"] = c.get("matchScore", 0)
+        c["fit_percent"] = int(c.get("matchScore", 0) * 10)
+        c["fitPercent"] = int(c.get("matchScore", 0) * 10)
+        c["program_url"] = c.get("programRoute", "/information/program")
+        c["programUrl"] = c.get("programRoute", "/information/program")
+
+    top1 = results[0]
+    top2 = results[1]
+    top3 = results[2]
+    
+    summary = f"Dựa trên 20 tiêu chí tự đánh giá, bạn có độ tương thích cao nhất với vai trò '{top1['title']}' ({top1['matchScore']}/10), kế tiếp là '{top2['title']}' ({top2['matchScore']}/10) và '{top3['title']}' ({top3['matchScore']}/10)."
+
+    return {
+        "groupScores": group_scores,
+        "group_scores": group_scores,
+        "compositeScore": top1["matchScore"],
+        "composite_score": top1["matchScore"],
+        "recommendations": results,
+        "rankings": results,
+        "summary": summary
+    }
+
+def submit_career_quiz(student_code, answers):
+    result = calculate_career_quiz(answers)
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO career_quiz_results (student_code, answers, group_scores, composite_score, recommendations, summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        student_code,
+        json.dumps(answers, ensure_ascii=False),
+        json.dumps(result["groupScores"], ensure_ascii=False),
+        result["compositeScore"],
+        json.dumps(result["recommendations"], ensure_ascii=False),
+        result["summary"],
+        now
+    ))
+    quiz_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return {
+        "id": quiz_id,
+        "studentCode": student_code,
+        "answers": answers,
+        "groupScores": result["groupScores"],
+        "group_scores": result["groupScores"],
+        "compositeScore": result["compositeScore"],
+        "composite_score": result["compositeScore"],
+        "recommendations": result["recommendations"],
+        "rankings": result["recommendations"],
+        "summary": result["summary"],
+        "createdAt": now
+    }
+
+def get_latest_career_quiz(student_code):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT * FROM career_quiz_results
+        WHERE student_code = ?
+        ORDER BY id DESC LIMIT 1
+    """, (student_code,))
+    row = cur.fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+        
+    g_scores = json.loads(row["group_scores"])
+    recs = json.loads(row["recommendations"])
+    return {
+        "id": row["id"],
+        "studentCode": row["student_code"],
+        "answers": json.loads(row["answers"]),
+        "groupScores": g_scores,
+        "group_scores": g_scores,
+        "compositeScore": row["composite_score"],
+        "composite_score": row["composite_score"],
+        "recommendations": recs,
+        "rankings": recs,
+        "summary": row["summary"],
+        "createdAt": row["created_at"]
+    }
+
+def get_career_quiz_history(student_code):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, student_code, composite_score, summary, created_at
+        FROM career_quiz_results
+        WHERE student_code = ?
+        ORDER BY id DESC LIMIT 10
+    """, (student_code,))
+    rows = cur.fetchall()
+    conn.close()
+    
+    return [
+        {
+            "id": r["id"],
+            "studentCode": r["student_code"],
+            "compositeScore": r["composite_score"],
+            "summary": r["summary"],
+            "createdAt": r["created_at"]
+        }
+        for r in rows
+    ]
 
 # Initialize DB on load
 init_db()
