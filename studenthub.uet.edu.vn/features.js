@@ -383,6 +383,8 @@
     const [pageSize, setPageSize] = k.useState(15);
     const [selectedLecturer, setSelectedLecturer] = k.useState(null);
     const [selectedOrg, setSelectedOrg] = k.useState(null);
+    const [orgSearchQuery, setOrgSearchQuery] = k.useState("");
+    const [selectedOrgCategory, setSelectedOrgCategory] = k.useState("all");
 
     // Fetch Lecturers
     k.useEffect(() => {
@@ -462,10 +464,28 @@
     const startIndex = (safeCurrentPage - 1) * pageSize;
     const paginatedLecturers = filteredLecturers.slice(startIndex, startIndex + pageSize);
 
-    // Filter Orgs
+    // Filter Orgs (Clubs, Labs & Units)
     const filteredOrgs = orgs.filter(o => {
-      const matchSearch = !searchQuery || (o.name + " " + o.field + " " + o.summary).toLowerCase().includes(searchQuery.toLowerCase());
-      return matchSearch;
+      const q = orgSearchQuery.toLowerCase().trim();
+      const matchSearch = !q || (
+        (o.name && o.name.toLowerCase().includes(q)) ||
+        (o.field && o.field.toLowerCase().includes(q)) ||
+        (o.summary && o.summary.toLowerCase().includes(q)) ||
+        (o.description && o.description.toLowerCase().includes(q))
+      );
+
+      let matchCategory = true;
+      if (selectedOrgCategory === "club") {
+        matchCategory = o.category === "club";
+      } else if (selectedOrgCategory === "lab") {
+        matchCategory = o.category === "lab";
+      } else if (selectedOrgCategory === "department") {
+        matchCategory = o.category === "department";
+      } else if (selectedOrgCategory === "saved") {
+        matchCategory = !!o.isBookmarked;
+      }
+
+      return matchSearch && matchCategory;
     });
 
     // Unit options for filter dropdown
@@ -812,7 +832,77 @@
             subTab === "units" && d.jsxs("div", {
               className: "space-y-4",
               children: [
-                loadingOrgs ? d.jsx("div", { className: "py-12 text-center text-gray-500", children: "Đang tải danh bạ đơn vị..." }) :
+                // Filter Controls Bar for Orgs / Clubs / Labs
+                d.jsxs("div", {
+                  className: "flex flex-col lg:flex-row gap-4 items-center justify-between rounded-xl bg-white p-4 shadow-sm border border-stroke",
+                  children: [
+                    // Search box for Orgs
+                    d.jsxs("div", {
+                      className: "relative w-full lg:w-96",
+                      children: [
+                        d.jsx("input", {
+                          type: "text",
+                          value: orgSearchQuery,
+                          onChange: e => setOrgSearchQuery(e.target.value),
+                          placeholder: "Tìm kiếm câu lạc bộ, phòng thí nghiệm, lĩnh vực...",
+                          className: "w-full rounded-lg border border-stroke bg-gray-50 py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:bg-white transition"
+                        }),
+                        d.jsx("span", { className: "absolute left-3 top-3 text-gray-400", children: "🔍" })
+                      ]
+                    }),
+
+                    // Filter dropdowns and reset for Orgs
+                    d.jsxs("div", {
+                      className: "flex flex-wrap items-center gap-3 w-full lg:w-auto",
+                      children: [
+                        d.jsxs("select", {
+                          value: selectedOrgCategory,
+                          onChange: e => setSelectedOrgCategory(e.target.value),
+                          className: "rounded-lg border border-stroke bg-gray-50 py-2 px-3 text-xs font-semibold text-gray-700 focus:border-primary focus:outline-none",
+                          children: [
+                            d.jsx("option", { value: "all", children: "Tất cả tổ chức & đơn vị" }),
+                            d.jsx("option", { value: "club", children: "Câu lạc bộ sinh viên" }),
+                            d.jsx("option", { value: "lab", children: "Phòng Thí nghiệm nghiên cứu" }),
+                            d.jsx("option", { value: "department", children: "Khoa / Bộ môn đào tạo" }),
+                            d.jsx("option", { value: "saved", children: "Đã lưu yêu thích (❤️)" })
+                          ]
+                        }),
+
+                        (orgSearchQuery || selectedOrgCategory !== "all") && d.jsx("button", {
+                          onClick: () => { setOrgSearchQuery(""); setSelectedOrgCategory("all"); },
+                          className: "rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition",
+                          children: "✕ Xóa bộ lọc"
+                        }),
+
+                        d.jsxs("span", {
+                          className: "text-xs font-medium text-gray-500",
+                          children: [
+                            "Hiển thị: ",
+                            d.jsx("strong", { className: "text-primary", children: filteredOrgs.length }),
+                            " / ",
+                            orgs.length,
+                            " đơn vị"
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                }),
+
+                loadingOrgs ? d.jsx("div", { className: "py-12 text-center text-gray-500 rounded-xl bg-white border border-stroke", children: "Đang tải danh bạ đơn vị..." }) :
+                filteredOrgs.length === 0 ? d.jsxs("div", {
+                  className: "rounded-xl bg-white p-12 text-center text-gray-500 border border-stroke space-y-3",
+                  children: [
+                    d.jsx("div", { className: "text-4xl", children: "🔍" }),
+                    d.jsx("h4", { className: "text-base font-bold text-gray-800", children: "Không tìm thấy câu lạc bộ hoặc phòng thí nghiệm phù hợp" }),
+                    d.jsx("p", { className: "text-xs text-gray-500 max-w-md mx-auto", children: "Không có kết quả nào khớp với từ khóa tìm kiếm hoặc bộ lọc loại hình hiện tại. Vui lòng thử tìm từ khóa khác." }),
+                    d.jsx("button", {
+                      onClick: () => { setOrgSearchQuery(""); setSelectedOrgCategory("all"); },
+                      className: "mt-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white shadow hover:bg-opacity-90",
+                      children: "Đặt lại tất cả bộ lọc"
+                    })
+                  ]
+                }) :
                 d.jsx("div", {
                   className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
                   children: filteredOrgs.map(org => d.jsxs("div", {
@@ -826,8 +916,13 @@
                             className: "flex items-start justify-between gap-2",
                             children: [
                               d.jsx("span", {
-                                className: `rounded-md px-2.5 py-0.5 text-xs font-semibold ${org.category === "club" ? "bg-purple-50 text-purple-700" : org.category === "lab" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`,
-                                children: org.category === "club" ? "Câu lạc bộ" : org.category === "lab" ? "Phòng Thí nghiệm" : "Khoa/Phòng"
+                                className: `rounded-md px-2.5 py-0.5 text-xs font-semibold ${
+                                  org.category === "club" ? "bg-purple-50 text-purple-700" :
+                                  org.category === "lab" ? "bg-blue-50 text-blue-700" :
+                                  org.category === "department" ? "bg-amber-50 text-amber-700" :
+                                  "bg-emerald-50 text-emerald-700"
+                                }`,
+                                children: org.category === "club" ? "Câu lạc bộ" : org.category === "lab" ? "Phòng Thí nghiệm" : org.category === "department" ? "Bộ môn / Khoa" : "Đơn vị"
                               }),
                               d.jsx("button", {
                                 onClick: (e) => toggleBookmark(e, org.id),
