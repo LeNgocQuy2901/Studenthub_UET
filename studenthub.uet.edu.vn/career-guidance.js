@@ -170,10 +170,12 @@
         setProfile(previous => ({ ...previous, ...update, completed: false }));
         setDraftDirty(true); setError("");
       }
-      async function persistSurvey(complete, destination, nextStep) {
+      async function persistSurvey(complete, destination, nextStepNum) {
         setBusy(true); setError("");
         try {
-          const state = await api("profile", { profile: { ...profile, completed: complete, step: nextStep || profile.step } });
+          const currentStep = Number(profile.step) || 1;
+          const stepToSave = nextStepNum !== undefined && nextStepNum !== null ? Number(nextStepNum) : currentStep;
+          const state = await api("profile", { profile: { ...profile, completed: complete, step: stepToSave } });
           setProfile(state.profile); setDraftDirty(false);
           if (complete) { setRanking(await api("recommendations")); setResultTab("overview"); }
           if (destination) navigate(destination);
@@ -181,10 +183,12 @@
         } catch (e) { setError(e.message); } finally { setBusy(false); }
       }
       function nextStep() {
-        if (profile.step === 1 && !profile.interests.length) { setError("Hãy chọn ít nhất một lĩnh vực bạn quan tâm."); return; }
-        if (profile.step === 2 && data.config.skills.some(skill => !profile.ratings[skill.id])) { setError("Hãy đánh giá đầy đủ 8 kỹ năng. Mục chưa trả lời sẽ không tự được chấm điểm."); return; }
-        if (profile.step === 3 && (!profile.goal || !profile.postgraduate)) { setError("Hãy chọn mục tiêu nghề nghiệp và kế hoạch học cao hơn."); return; }
-        persistSurvey(profile.step === 3, profile.step === 3 ? "results" : null, Math.min(3, profile.step + 1));
+        const currentStep = Number(profile.step) || 1;
+        if (currentStep === 1 && (!profile.interests || !profile.interests.length)) { setError("Hãy chọn ít nhất một lĩnh vực bạn quan tâm."); return; }
+        if (currentStep === 2 && data.config.skills.some(skill => !(profile.ratings || {})[skill.id])) { setError("Hãy đánh giá đầy đủ 8 kỹ năng. Mục chưa trả lời sẽ không tự được chấm điểm."); return; }
+        if (currentStep === 3 && (!profile.goal || !profile.postgraduate)) { setError("Hãy chọn mục tiêu nghề nghiệp và kế hoạch học cao hơn."); return; }
+        const targetStep = Math.min(3, currentStep + 1);
+        persistSurvey(currentStep === 3, currentStep === 3 ? "results" : null, targetStep);
       }
       async function toggleSaved(roleId) {
         setBusy(true); setError("");
@@ -232,18 +236,21 @@
       const courseList = role => h("div", { className: "cg-course-list" }, role.courseMappings.map(course => h("article", { className: "cg-course", key: course.courseCode }, h("div", { className: "cg-row-between" }, h("span", { className: "cg-course-code" }, course.courseCode), h("span", { className: "cg-pill" }, course.relevance)), h("h3", null, course.courseName), h("p", null, course.reason))));
       const gapList = role => {
         const result = scoreFor(role);
-        return result ? h("div", { className: "cg-gap-list" }, result.gaps.map(gap => h("div", { className: "cg-gap-row", key: gap.id }, h("div", null, h("strong", null, gap.label), h("p", null, gap.gap ? "Cần nâng thêm " + gap.gap + " mức" : "Đã đạt mức gợi ý")), h("div", { className: "cg-gap-meter" }, h("div", { className: "cg-progress", role: "progressbar", "aria-label": gap.label, "aria-valuenow": gap.current, "aria-valuemin": 0, "aria-valuemax": 5 }, h("span", { style: { width: gap.current / 5 * 100 + "%" } })), h("small", null, "Hiện tại " + gap.current + "/5 · Mục tiêu " + gap.target + "/5")), h("span", { className: "cg-pill " + (gap.gap ? "cg-pill-amber" : "cg-pill-green") }, gap.gap ? "Cần bổ sung" : "Đã đạt")))) : empty("Cùng tìm hiểu năng lực của bạn", "Hoàn thành bài đánh giá để xem kỹ năng đã có và kỹ năng cần bổ sung cho nghề này.", button("Làm bài đánh giá", () => navigate("assessment"), "primary"));
+        return result ? h("div", { className: "cg-gap-list" }, result.gaps.map(gap => h("div", { className: "cg-gap-row", key: gap.id }, h("div", null, h("strong", null, gap.label), h("p", null, gap.gap ? "Cần nâng thêm " + gap.gap + " mức" : "Đã đạt mức gợi ý")), h("div", { className: "cg-gap-meter" }, h("div", { className: "cg-progress", role: "progressbar", "aria-label": gap.label, "aria-valuenow": gap.current, "aria-valuemin": 0, "aria-valuemax": 5 }, h("span", { style: { width: gap.current / 5 * 100 + "%" } })), h("small", null, "Hiện tại " + gap.current + "/5 · Mục tiêu " + gap.target + "/5")), h("span", { className: "cg-pill " + (gap.gap ? "cg-pill-amber" : "cg-pill-green") }, gap.gap ? "Cần bổ sung" : "Đã đạt")))) : empty("Cùng tìm hiểu năng lực của bạn", "Hoàn thành bài đánh giá để xem kỹ năng đã có và kỹ năng cần bổ sung cho nghề này.", button("Làm bài đánh giá", () => { updateProfile({ step: 1 }); persistSurvey(false, "assessment", 1); }, "primary"));
       };
 
       function overview() {
         const actions = [
-          ["clipboard", "blue", "Làm bài đánh giá", "Tìm hiểu sở thích, kỹ năng và mục tiêu của bạn.", profile.completed ? "Đánh giá lại" : profile.interests.length ? "Tiếp tục đánh giá" : "Bắt đầu", () => navigate("assessment")],
+          ["clipboard", "blue", "Làm bài đánh giá", "Tìm hiểu sở thích, kỹ năng và mục tiêu của bạn.", profile.completed ? "Đánh giá lại" : profile.interests?.length ? "Tiếp tục đánh giá" : "Bắt đầu", () => {
+            updateProfile({ step: 1 });
+            persistSurvey(false, "assessment", 1);
+          }],
           ["chart", "cyan", "Xem kết quả gợi ý", "Khám phá các nghề nghiệp phù hợp và lý do gợi ý.", "Xem kết quả", () => navigate("results")],
           ["map", "blue", "Lộ trình phát triển", "Kết nối kỹ năng với học phần UET và theo dõi tiến độ.", "Khám phá", () => navigate("roadmap", topRole.id)],
           ["briefcase", "orange", "Cơ hội việc làm", "Tìm hiểu vị trí việc làm và thực tập theo định hướng.", "Tìm hiểu cơ hội", () => navigate("jobs")],
         ];
         return h(React.Fragment, null,
-          h("section", { className: "cg-hero" }, h("img", { src: "/images/career-banner-uet.png", alt: "Sinh viên UET khám phá những hướng đi nghề nghiệp", className: "cg-hero-art" }), h("div", { className: "cg-hero-copy" }, h("span", { className: "cg-eyebrow" }, "CÙNG UET ĐỊNH HƯỚNG TƯƠNG LAI"), h("h1", null, "Hướng nghiệp"), h("p", null, "Khám phá tiềm năng của bạn.", h("br"), "Tìm hướng đi phù hợp với sở thích, năng lực và mục tiêu."), button(h(React.Fragment, null, profile.completed ? "Xem hướng đi của bạn" : "Khám phá bản thân", icon("arrow")), () => navigate(profile.completed ? "results" : "assessment"), "primary"))),
+          h("section", { className: "cg-hero" }, h("img", { src: "/images/career-banner-uet.png", alt: "Sinh viên UET khám phá những hướng đi nghề nghiệp", className: "cg-hero-art" }), h("div", { className: "cg-hero-copy" }, h("span", { className: "cg-eyebrow" }, "CÙNG UET ĐỊNH HƯỚNG TƯƠNG LAI"), h("h1", null, "Hướng nghiệp"), h("p", null, "Khám phá tiềm năng của bạn.", h("br"), "Tìm hướng đi phù hợp với sở thích, năng lực và mục tiêu."), button(h(React.Fragment, null, profile.completed ? "Xem hướng đi của bạn" : "Khám phá bản thân", icon("arrow")), () => { if (profile.completed) navigate("results"); else { updateProfile({ step: 1 }); persistSurvey(false, "assessment", 1); } }, "primary"))),
           h("div", { className: "cg-action-grid" }, actions.map(([symbol, color, title, text, cta, action], i) => h("article", { className: "cg-card cg-action-card", key: title }, badgeIcon(symbol, color), h("h2", null, title), h("p", null, text), button(h(React.Fragment, null, cta, icon("arrow")), action, i === 0 ? "primary" : "secondary")))),
           notice("Kết quả hướng nghiệp mang tính chất tham khảo, giúp bạn khám phá và tự ra quyết định về nghề nghiệp."),
           h("div", { className: "cg-section-heading" }, h("div", null, h("h2", null, "Chủ động khám phá nghề nghiệp"), h("p", null, "6 hướng nghề · Kỹ năng chuyên môn · Học phần UET")), button("Xem tất cả nghề →", () => navigate("explore"), "link")),
@@ -252,21 +259,159 @@
 
       function assessment() {
         const names = ["Sở thích", "Kỹ năng", "Mục tiêu"];
+        const currentStep = Math.max(1, Math.min(3, Number(profile.step) || 1));
         let contents;
-        if (profile.step === 1) contents = h(React.Fragment, null, h("h2", null, "Bạn quan tâm đến những lĩnh vực nào?"), h("p", { className: "cg-muted" }, "Có thể chọn nhiều lựa chọn. Hãy chọn những điều khiến bạn muốn tìm hiểu thêm."), h("div", { className: "cg-interest-grid" }, config.interests.map(interest => {
-          const checked = profile.interests.includes(interest.id);
-          return h("button", { type: "button", className: "cg-interest" + (checked ? " is-selected" : ""), key: interest.id, "aria-pressed": checked, onClick: () => updateProfile({ interests: checked ? profile.interests.filter(value => value !== interest.id) : [...profile.interests, interest.id] }) }, badgeIcon(interest.icon, interest.color), h("span", null, interest.label), checked && h("span", { className: "cg-selected-check" }, icon("check")));
-        })));
-        else if (profile.step === 2) contents = h(React.Fragment, null, h("h2", null, "Bạn tự tin với các kỹ năng sau ở mức nào?"), h("p", { className: "cg-muted" }, "Đánh giá năng lực hiện tại trên thang 1–5. Không cần chọn mức cao để có một hướng đi phù hợp."), h("div", { className: "cg-skill-list" }, config.skills.map(skill => {
-          const current = profile.ratings[skill.id];
-          return h("fieldset", { className: "cg-skill-row", key: skill.id }, h("legend", null, skill.label), h("div", { className: "cg-rating" }, [1, 2, 3, 4, 5].map(value => h("label", { key: value, className: "cg-rating-choice" + (current >= value ? " is-filled" : "") }, h("input", { type: "radio", name: "skill-" + skill.id, value, checked: current === value, onChange: () => updateProfile({ ratings: { ...profile.ratings, [skill.id]: value } }), "aria-label": value + " trên 5 — " + LEVELS[value - 1] }), h("span", null, value)))), h("span", { className: "cg-level" + (!current ? " cg-unanswered" : "") }, current ? LEVELS[current - 1] : "Chưa trả lời"));
-        })), h("div", { className: "cg-scale" }, LEVELS.map((label, index) => h("span", { key: label }, h("b", null, index + 1), label))));
-        else contents = h("div", { className: "cg-goals" }, h("fieldset", null, h("legend", null, "Mục tiêu của bạn trong 3–5 năm tới là gì?"), config.goals.map(goal => h("label", { className: "cg-radio-option", key: goal.id }, h("input", { type: "radio", name: "career-goal", checked: profile.goal === goal.id, onChange: () => updateProfile({ goal: goal.id }) }), h("span", null, goal.label)))), h("fieldset", null, h("legend", null, "Bạn có dự định học lên bậc cao hơn (Thạc sĩ, Tiến sĩ) không?"), h("p", { className: "cg-muted" }, "Thông tin này giúp điều chỉnh các bước trong lộ trình học tập."), config.postgraduate.map(option => h("label", { className: "cg-radio-option", key: option.id }, h("input", { type: "radio", name: "postgraduate", checked: profile.postgraduate === option.id, onChange: () => updateProfile({ postgraduate: option.id }) }), h("span", null, option.label)))));
+
+        if (currentStep === 1) {
+          contents = h(React.Fragment, null,
+            h("div", { style: { marginBottom: "16px" } },
+              h("span", { className: "cg-pill cg-pill-blue", style: { fontWeight: 700 } }, "BƯỚC 1/3: SỞ THÍCH"),
+              h("h2", { style: { marginTop: "8px" } }, "Bạn quan tâm đến những lĩnh vực nào?"),
+              h("p", { className: "cg-muted", style: { marginTop: "4px" } }, "Có thể chọn nhiều lựa chọn. Hãy chọn những mảng công nghệ khiến bạn muốn tìm hiểu sâu hơn.")
+            ),
+            h("div", { className: "cg-interest-grid" }, config.interests.map(interest => {
+              const checked = (profile.interests || []).includes(interest.id);
+              return h("button", {
+                type: "button",
+                className: "cg-interest" + (checked ? " is-selected" : ""),
+                key: interest.id,
+                "aria-pressed": checked,
+                onClick: () => updateProfile({
+                  interests: checked ? (profile.interests || []).filter(value => value !== interest.id) : [...(profile.interests || []), interest.id]
+                })
+              }, badgeIcon(interest.icon, interest.color), h("span", null, interest.label), checked && h("span", { className: "cg-selected-check" }, icon("check")));
+            }))
+          );
+        } else if (currentStep === 2) {
+          const filledCount = config.skills.filter(s => (profile.ratings || {})[s.id]).length;
+          contents = h(React.Fragment, null,
+            h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "16px" } },
+              h("div", null,
+                h("span", { className: "cg-pill cg-pill-blue", style: { fontWeight: 700 } }, "BƯỚC 2/3: KỸ NĂNG CHUYÊN MÔN"),
+                h("h2", { style: { marginTop: "8px" } }, "Bạn tự tin với các kỹ năng sau ở mức nào?"),
+                h("p", { className: "cg-muted", style: { marginTop: "4px" } }, "Đánh giá năng lực hiện tại trên thang 1–5 cho 8 nhóm kỹ năng cốt lõi. (Đã đánh giá: " + filledCount + "/8)")
+              ),
+              button("⚡ Điền mẫu gợi ý (Mức 3/5)", () => {
+                const autoRatings = { ...(profile.ratings || {}) };
+                config.skills.forEach(s => {
+                  if (!autoRatings[s.id]) autoRatings[s.id] = 3;
+                });
+                updateProfile({ ratings: autoRatings });
+              }, "secondary", { style: { padding: "6px 14px", fontSize: "12px", minHeight: "36px" } })
+            ),
+            h("div", { className: "cg-skill-list" }, config.skills.map(skill => {
+              const current = (profile.ratings || {})[skill.id];
+              return h("fieldset", { className: "cg-skill-row", key: skill.id },
+                h("legend", null, skill.label),
+                h("div", { className: "cg-rating" }, [1, 2, 3, 4, 5].map(value =>
+                  h("label", { key: value, className: "cg-rating-choice" + (current >= value ? " is-filled" : "") },
+                    h("input", {
+                      type: "radio",
+                      name: "skill-" + skill.id,
+                      value,
+                      checked: current === value,
+                      onChange: () => updateProfile({ ratings: { ...(profile.ratings || {}), [skill.id]: value } }),
+                      "aria-label": value + " trên 5 — " + LEVELS[value - 1]
+                    }),
+                    h("span", null, value)))),
+                h("span", { className: "cg-level" + (!current ? " cg-unanswered" : "") }, current ? LEVELS[current - 1] : "Chưa trả lời"));
+            })),
+            h("div", { className: "cg-scale" }, LEVELS.map((label, index) => h("span", { key: label }, h("b", null, index + 1), label)))
+          );
+        } else {
+          contents = h("div", { className: "cg-goals" },
+            h("fieldset", null,
+              h("span", { className: "cg-pill cg-pill-blue", style: { fontWeight: 700, marginBottom: "10px", display: "inline-block" } }, "BƯỚC 3/3: MỤC TIÊU"),
+              h("legend", null, "Mục tiêu của bạn trong 3–5 năm tới là gì?"),
+              config.goals.map(goal => h("label", { className: "cg-radio-option", key: goal.id },
+                h("input", { type: "radio", name: "career-goal", checked: profile.goal === goal.id, onChange: () => updateProfile({ goal: goal.id }) }),
+                h("span", null, goal.label)))),
+            h("fieldset", null,
+              h("span", { className: "cg-pill cg-pill-blue", style: { fontWeight: 700, marginBottom: "10px", display: "inline-block" } }, "BƯỚC 3/3: HỌC VẤN"),
+              h("legend", null, "Bạn có dự định học lên bậc cao hơn (Thạc sĩ, Tiến sĩ) không?"),
+              h("p", { className: "cg-muted", style: { marginBottom: "12px" } }, "Thông tin này giúp điều chỉnh các bước trong lộ trình học tập."),
+              config.postgraduate.map(option => h("label", { className: "cg-radio-option", key: option.id },
+                h("input", { type: "radio", name: "postgraduate", checked: profile.postgraduate === option.id, onChange: () => updateProfile({ postgraduate: option.id }) }),
+                h("span", null, option.label))))
+          );
+        }
+
+        const stepTabs = [
+          [1, "Bước 1: Sở thích"],
+          [2, "Bước 2: Kỹ năng"],
+          [3, "Bước 3: Mục tiêu"]
+        ];
+
         return h(React.Fragment, null,
-          heading("Bài đánh giá hướng nghiệp", "Hiểu bản thân hơn qua 3 bước ngắn gọn.", button("Lưu và thoát", () => persistSurvey(false, "overview"), "secondary", { disabled: busy })),
-          h("ol", { className: "cg-stepper", "aria-label": "Tiến trình đánh giá" }, names.map((name, index) => h("li", { key: name, className: index + 1 === profile.step ? "is-current" : index + 1 < profile.step ? "is-complete" : "", "aria-current": index + 1 === profile.step ? "step" : undefined }, h("span", { className: "cg-step-dot" }, index + 1 < profile.step ? icon("check") : index + 1), h("div", null, h("small", null, "BƯỚC " + (index + 1) + "/3"), h("strong", null, name))))),
-          h("section", { className: "cg-card cg-survey" }, h("fieldset", { disabled: busy, className: "cg-survey-body" }, contents), h("div", { className: "cg-form-footer" }, button(h(React.Fragment, null, icon("back"), "Quay lại"), () => profile.step === 1 ? navigate("overview") : persistSurvey(false, null, profile.step - 1), "secondary", { disabled: busy }), h("span", { className: "cg-save-hint" }, busy ? "Đang lưu…" : draftDirty ? "Có thay đổi chưa lưu" : "Bản đánh giá đã được lưu"), button(h(React.Fragment, null, busy ? "Đang lưu…" : profile.step === 3 ? "Hoàn thành" : "Tiếp theo", icon("arrow")), nextStep, "primary", { disabled: busy }))),
-          notice("Bạn có thể lưu bản nháp và tiếp tục sau. Mức độ phù hợp là chỉ số tham khảo từ câu trả lời tự đánh giá."));
+          heading("Bài đánh giá hướng nghiệp", "Hiểu bản thân hơn qua 3 bước ngắn gọn: Sở thích → Kỹ năng → Mục tiêu.",
+            button("Lưu và thoát", () => persistSurvey(false, "overview"), "secondary", { disabled: busy })),
+          // Stepper with clickable steps
+          h("ol", { className: "cg-stepper", "aria-label": "Tiến trình đánh giá" }, names.map((name, index) => {
+            const stepNum = index + 1;
+            const isCurrent = stepNum === currentStep;
+            const isComplete = stepNum < currentStep;
+            return h("li", {
+              key: name,
+              className: (isCurrent ? "is-current" : isComplete ? "is-complete" : "") + " is-clickable",
+              "aria-current": isCurrent ? "step" : undefined,
+              onClick: () => {
+                if (busy) return;
+                updateProfile({ step: stepNum });
+                persistSurvey(false, null, stepNum);
+              },
+              title: "Bấm để chuyển tới Bước " + stepNum + ": " + name
+            },
+              h("span", { className: "cg-step-dot" }, isComplete ? icon("check") : stepNum),
+              h("div", null,
+                h("small", null, "BƯỚC " + stepNum + "/3"),
+                h("strong", null, name)
+              )
+            );
+          })),
+          // Direct Step Switcher Buttons for fast jumping
+          h("div", { className: "cg-step-nav-bar" },
+            stepTabs.map(([sNum, sLabel]) =>
+              button(
+                h(React.Fragment, null,
+                  h("span", { className: "cg-step-badge" }, "BƯỚC " + sNum),
+                  sLabel
+                ),
+                () => {
+                  if (busy) return;
+                  updateProfile({ step: sNum });
+                  persistSurvey(false, null, sNum);
+                },
+                currentStep === sNum ? "primary" : "secondary",
+                {
+                  key: sNum,
+                  className: "cg-step-nav-btn" + (currentStep === sNum ? " is-active" : ""),
+                  disabled: busy
+                }
+              )
+            )
+          ),
+          h("section", { className: "cg-card cg-survey" },
+            h("fieldset", { disabled: busy, className: "cg-survey-body" }, contents),
+            h("div", { className: "cg-form-footer" },
+              button(
+                h(React.Fragment, null, icon("back"), currentStep === 1 ? "Về trang Tổng quan" : currentStep === 2 ? "Quay lại Bước 1 (Sở thích)" : "Quay lại Bước 2 (Kỹ năng)"),
+                () => currentStep === 1 ? navigate("overview") : persistSurvey(false, null, currentStep - 1),
+                "secondary",
+                { disabled: busy }
+              ),
+              h("span", { className: "cg-save-hint" }, busy ? "Đang lưu…" : draftDirty ? "Có thay đổi chưa lưu" : "Bản đánh giá đã được lưu"),
+              button(
+                h(React.Fragment, null,
+                  busy ? "Đang lưu…" : currentStep === 1 ? "Tiếp tục sang Bước 2 (Kỹ năng) →" : currentStep === 2 ? "Tiếp tục sang Bước 3 (Mục tiêu) →" : "Hoàn thành đánh giá & Xem kết quả 🏆",
+                  currentStep < 3 && icon("arrow")
+                ),
+                nextStep,
+                "primary",
+                { disabled: busy }
+              )
+            )
+          ),
+          notice("Bạn có thể tự do bấm vào các Bước trên thanh tiến trình hoặc các nút BƯỚC 1, 2, 3 ở trên để chuyển bước trực tiếp bất kỳ lúc nào."));
       }
 
       function results() {
@@ -276,7 +421,7 @@
           heading("Kết quả hướng nghiệp", "Những hướng đi để bạn cân nhắc và khám phá thêm.", button(h(React.Fragment, null, icon("download"), "In / Lưu PDF"), () => { document.body.classList.add("cg-printing"); window.print(); })),
           tabs([["overview", "Tổng quan"], ["gaps", "Kỹ năng cần bổ sung"], ["courses", "Học phần gợi ý"], ["roadmap", "Lộ trình học tập"]], resultTab, value => value === "roadmap" ? navigate("roadmap", topRole.id) : setResultTab(value)),
           notice("Chỉ số phù hợp tham khảo: sở thích 40%, kỹ năng 40%, mục tiêu nghề nghiệp 20%. Chỉ số này không phải xác suất thành công hay đánh giá chính thức của nhà trường."),
-          resultTab === "overview" ? h("section", { className: "cg-card cg-results" }, h("div", { className: "cg-section-heading" }, h("h2", null, "Các nghề nghiệp phù hợp với bạn"), button("Đánh giá lại", () => { updateProfile({ step: 1 }); navigate("assessment"); }, "link")), ranking.map((result, index) => {
+          resultTab === "overview" ? h("section", { className: "cg-card cg-results" }, h("div", { className: "cg-section-heading" }, h("h2", null, "Các nghề nghiệp phù hợp với bạn"), button("Đánh giá lại", () => { updateProfile({ step: 1 }); persistSurvey(false, "assessment", 1); }, "link")), ranking.map((result, index) => {
             const role = roleById[result.roleId];
             return h("article", { className: "cg-result-row", key: role.id }, h("span", { className: "cg-rank" + (index === 0 ? " cg-rank-first" : "") }, index === 0 ? "🏆" : index + 1), badgeIcon(meta(role).icon, meta(role).color), h("button", { className: "cg-result-copy", type: "button", onClick: () => navigate("detail", role.id) }, h("h3", null, careerName(role)), h("p", null, role.description), h("span", { className: "cg-text-link" }, "Xem lý do phù hợp →")), scoreBadge(role));
           })) : h("section", { className: "cg-card cg-panel" }, h("div", { className: "cg-section-heading" }, h("div", null, h("h2", null, careerName(topRole)), h("p", null, "Gợi ý cho nghề có chỉ số phù hợp cao nhất")), button("Xem chi tiết nghề →", () => navigate("detail", topRole.id), "link")), resultTab === "gaps" ? gapList(topRole) : courseList(topRole)),
@@ -299,7 +444,7 @@
           heading(careerName(role), role.category, button(h(React.Fragment, null, icon("bookmark"), saved.includes(role.id) ? "Đã lưu nghề" : "Lưu nghề này"), () => toggleSaved(role.id), "secondary", { disabled: busy, "aria-pressed": saved.includes(role.id) }), "explore"),
           h("div", { className: "cg-fit-bar cg-card" }, h("span", null, "Mức độ phù hợp với bạn"), h("div", { className: "cg-progress" }, h("span", { style: { width: (result?.score || 0) + "%" } })), h("strong", null, result ? result.score + "%" : "Chưa đánh giá")),
           tabs([["overview", "Tổng quan"], ["skills", "Kỹ năng yêu cầu"], ["courses", "Học phần gợi ý"], ["jobs", "Cơ hội việc làm"]], selectedTab, tab => navigate("detail", role.id, tab)),
-          selectedTab === "overview" ? h("section", { className: "cg-card cg-panel cg-detail-grid" }, h("div", null, h("h2", null, "Mô tả công việc"), h("p", { className: "cg-body-copy" }, role.description), h("h2", null, "Vì sao phù hợp với bạn?"), result ? h("ul", { className: "cg-check-list" }, result.reasons.map(reason => h("li", { key: reason }, icon("check"), h("span", null, reason)))) : h("p", { className: "cg-muted" }, "Làm bài đánh giá để nhận giải thích dựa trên sở thích, kỹ năng và mục tiêu của bạn."), h("h2", null, "Những điểm cần phát triển"), result ? h("ul", { className: "cg-improve-list" }, result.gaps.some(gap => gap.gap) ? result.gaps.filter(gap => gap.gap).map(gap => h("li", { key: gap.id }, h("span", null, "!"), gap.label + ": hiện tại " + gap.current + "/5, mức gợi ý " + gap.target + "/5.")) : h("li", null, icon("check"), "Bạn đã đạt các mức kỹ năng tự đánh giá được gợi ý. Hãy tiếp tục tích lũy kinh nghiệm thực tế.")) : button("Làm bài đánh giá", () => navigate("assessment"), "primary"), h("h2", null, "Công việc thường gặp"), h("ul", { className: "cg-bullet-list" }, role.responsibilities.map(text => h("li", { key: text }, text)))), h("aside", { className: "cg-detail-aside" }, h("img", { src: "/images/career-hero.png", alt: "Khám phá định hướng nghề nghiệp tại UET" }), h("blockquote", null, "Mỗi kỹ năng hôm nay là một bước gần hơn đến hướng đi bạn chọn."), h("div", { className: "cg-mini-stats" }, h("span", null, h("strong", null, role.courseMappings.length), "Học phần liên quan"), h("span", null, h("strong", null, role.requiredSkills.length), "Nhóm kỹ năng")), button(h(React.Fragment, null, "Xem lộ trình học tập", icon("arrow")), () => navigate("roadmap", role.id), "primary")))
+          selectedTab === "overview" ? h("section", { className: "cg-card cg-panel cg-detail-grid" }, h("div", null, h("h2", null, "Mô tả công việc"), h("p", { className: "cg-body-copy" }, role.description), h("h2", null, "Vì sao phù hợp với bạn?"), result ? h("ul", { className: "cg-check-list" }, result.reasons.map(reason => h("li", { key: reason }, icon("check"), h("span", null, reason)))) : h("p", { className: "cg-muted" }, "Làm bài đánh giá để nhận giải thích dựa trên sở thích, kỹ năng và mục tiêu của bạn."), h("h2", null, "Những điểm cần phát triển"), result ? h("ul", { className: "cg-improve-list" }, result.gaps.some(gap => gap.gap) ? result.gaps.filter(gap => gap.gap).map(gap => h("li", { key: gap.id }, h("span", null, "!"), gap.label + ": hiện tại " + gap.current + "/5, mức gợi ý " + gap.target + "/5.")) : h("li", null, icon("check"), "Bạn đã đạt các mức kỹ năng tự đánh giá được gợi ý. Hãy tiếp tục tích lũy kinh nghiệm thực tế.")) : button("Làm bài đánh giá", () => { updateProfile({ step: 1 }); persistSurvey(false, "assessment", 1); }, "primary"), h("h2", null, "Công việc thường gặp"), h("ul", { className: "cg-bullet-list" }, role.responsibilities.map(text => h("li", { key: text }, text)))), h("aside", { className: "cg-detail-aside" }, h("img", { src: "/images/career-hero.png", alt: "Khám phá định hướng nghề nghiệp tại UET" }), h("blockquote", null, "Mỗi kỹ năng hôm nay là một bước gần hơn đến hướng đi bạn chọn."), h("div", { className: "cg-mini-stats" }, h("span", null, h("strong", null, role.courseMappings.length), "Học phần liên quan"), h("span", null, h("strong", null, role.requiredSkills.length), "Nhóm kỹ năng")), button(h(React.Fragment, null, "Xem lộ trình học tập", icon("arrow")), () => navigate("roadmap", role.id), "primary")))
             : selectedTab === "skills" ? h("section", { className: "cg-card cg-panel" }, h("h2", null, "Khoảng cách kỹ năng của bạn"), gapList(role), h("h2", null, "Kỹ năng chuyên môn của nghề"), h("div", { className: "cg-required-skills" }, role.requiredSkills.map(skill => h("article", { key: skill.name }, h("div", null, h("strong", null, skill.name), h("p", null, skill.category)), h("span", { className: "cg-pill" }, skill.level)))))
             : selectedTab === "courses" ? h("section", { className: "cg-card cg-panel" }, h("h2", null, "Học phần UET gợi ý"), h("p", { className: "cg-muted" }, "Tham khảo từ danh mục môn học hiện có của dự án; đối chiếu chương trình đào tạo áp dụng cho khóa của bạn."), courseList(role)) : renderJobs(role.id),
           h("div", { className: "cg-bottom-actions" }, button("Khám phá nghề khác", () => navigate("explore")), button(h(React.Fragment, null, "Xem lộ trình học tập", icon("arrow")), () => navigate("roadmap", role.id), "primary")));
@@ -361,7 +506,14 @@
       else content = route.view === "detail" ? detail(roleById[route.roleId]) : roadmap(roleById[route.roleId]);
       return h(Shell, null,
         h("div", { className: "cg-app", ref: pageRef, tabIndex: -1 }, h(Breadcrumb, { pageName: "Hướng nghiệp" }),
-          h("nav", { className: "cg-local-nav", "aria-label": "Điều hướng Hướng nghiệp" }, [["overview", "Tổng quan"], ["explore", "Khám phá nghề"], ["assessment", "Bài đánh giá"], ["results", "Kết quả"], ["jobs", "Cơ hội việc làm"]].map(([view, text]) => h("button", { key: view, type: "button", onClick: () => navigate(view), "aria-current": route.view === view ? "page" : undefined }, text))),
+          h("nav", { className: "cg-local-nav", "aria-label": "Điều hướng Hướng nghiệp" }, [["overview", "Tổng quan"], ["explore", "Khám phá nghề"], ["assessment", "Bài đánh giá"], ["results", "Kết quả"], ["jobs", "Cơ hội việc làm"]].map(([view, text]) => h("button", { key: view, type: "button", onClick: () => {
+            if (view === "assessment" && profile && profile.completed) {
+              updateProfile({ step: 1 });
+              persistSurvey(false, "assessment", 1);
+            } else {
+              navigate(view);
+            }
+          }, "aria-current": route.view === view ? "page" : undefined }, text))),
           error && h("div", { className: "cg-error", role: "alert" }, icon("info"), h("span", null, error), button(icon("close"), () => setError(""), "icon", { "aria-label": "Đóng thông báo lỗi" })),
           message && h("div", { className: "cg-toast", role: "status" }, icon("check"), message), content,
           dialog && h("div", { className: "cg-overlay", onClick: event => { if (event.target === event.currentTarget) setDialog(null); } }, h("section", { className: "cg-modal", ref: modalRef, role: "dialog", "aria-modal": true, "aria-labelledby": "cg-dialog-title" }, h("div", { className: "cg-section-heading" }, h("h2", { id: "cg-dialog-title" }, dialog.type === "compare" ? "So sánh nghề nghiệp" : dialog.job.title), button(icon("close"), () => setDialog(null), "icon", { "aria-label": "Đóng cửa sổ" })), dialog.type === "compare" ? h("div", { className: "cg-comparison" }, compare.map(id => {
