@@ -16,6 +16,30 @@ import urllib.error
 import re
 import math
 
+def load_env():
+    search_dirs = [
+        os.path.dirname(os.path.abspath(__file__)),
+        os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")),
+        os.getcwd()
+    ]
+    for d in search_dirs:
+        env_path = os.path.join(d, ".env")
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip("'\"")
+                            if k not in os.environ:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+load_env()
+
 DB_PATH = os.environ.get("STUDENTHUB_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "studenthub.db")
 
 # ---------------------------------------------------------------------------
@@ -797,12 +821,25 @@ Yêu cầu trả lời:
             req_data = json.dumps({
                 "contents": [{"parts": [{"text": prompt}]}]
             }).encode("utf-8")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                res_json = json.loads(resp.read().decode("utf-8"))
-                ai_answer = res_json["candidates"][0]["content"]["parts"][0]["text"]
-                sources = [{"title": kb["topic"], "ref": kb["reference"], "type": kb["type"]} for kb in kb_results[:3]]
+            
+            # Try compatible Gemini model endpoints
+            models_to_try = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-1.5-flash"]
+            for model_name in models_to_try:
+                try:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
+                    req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+                    with urllib.request.urlopen(req, timeout=12) as resp:
+                        res_json = json.loads(resp.read().decode("utf-8"))
+                        ai_answer = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                        sources = [{"title": kb["topic"], "ref": kb["reference"], "type": kb["type"]} for kb in kb_results[:3]]
+                        if ai_answer:
+                            break
+                except urllib.error.HTTPError as he:
+                    if he.code == 404:
+                        continue
+                    break
+                except Exception:
+                    continue
         except Exception as e:
             ai_answer = ""
 

@@ -33,7 +33,7 @@ def request(path, method="GET", data=None):
     body = json.dumps(data).encode("utf-8") if data else None
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=25) as resp:
             content = resp.read().decode("utf-8")
             status = resp.getcode()
             try:

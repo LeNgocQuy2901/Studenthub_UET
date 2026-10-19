@@ -486,18 +486,31 @@
           children: [
             // Header Banner
             d.jsxs("div", {
-              className: "rounded-2xl bg-gradient-to-r from-teal-700 via-emerald-800 to-cyan-900 p-6 text-white shadow-lg",
+              className: "org-banner rounded-2xl p-6 text-white shadow-lg",
+              style: {
+                background: "linear-gradient(135deg, #064e3b 0%, #047857 50%, #0d9488 100%)",
+                color: "#ffffff",
+                position: "relative",
+                overflow: "hidden"
+              },
               children: [
                 d.jsx("span", {
-                  className: "inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider backdrop-blur-sm",
+                  className: "inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider backdrop-blur-sm",
+                  style: {
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    color: "#ffffff",
+                    border: "1px solid rgba(255, 255, 255, 0.3)"
+                  },
                   children: "Cổng Thông Tin Đội Ngũ & Tổ Chức Khoa CNTT - UET"
                 }),
                 d.jsx("h2", {
-                  className: "mt-2 text-2xl font-bold tracking-tight text-white md:text-3xl",
+                  className: "mt-2 text-2xl font-bold tracking-tight md:text-3xl",
+                  style: { color: "#ffffff", textShadow: "0 1px 3px rgba(0,0,0,0.25)" },
                   children: "Danh bạ Giảng viên & Đơn vị Khoa CNTT"
                 }),
                 d.jsx("p", {
-                  className: "mt-1 text-sm text-emerald-100 max-w-2xl",
+                  className: "mt-1 text-sm max-w-2xl",
+                  style: { color: "rgba(255, 255, 255, 0.92)", lineHeight: "1.55" },
                   children: "Tra cứu danh sách cán bộ, giảng viên các Bộ môn, thông tin liên hệ chính thức và mạng lưới các Phòng Thí nghiệm, Câu lạc bộ sinh viên UET."
                 })
               ]
@@ -1125,32 +1138,66 @@
             children: [
               // Banner
               d.jsxs("div", {
-                className: "rounded-2xl bg-gradient-to-r from-purple-800 via-indigo-800 to-blue-900 p-6 text-white shadow-lg",
+                className: "mentorship-banner rounded-2xl p-6 text-white shadow-lg",
+                style: {
+                  background: "linear-gradient(135deg, #0f2b5c 0%, #1e40af 50%, #3C50E0 100%)",
+                  color: "#ffffff",
+                  position: "relative",
+                  overflow: "hidden"
+                },
                 children: [
                   d.jsxs("div", {
-                    className: "flex flex-col md:flex-row md:items-center justify-between gap-4",
+                    className: "flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10",
                     children: [
                       d.jsxs("div", {
                         children: [
-                          d.jsx("span", { className: "inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider", children: "Mạng lưới Cố vấn & Cựu sinh viên UET" }),
-                          d.jsx("h2", { className: "mt-2 text-2xl font-bold tracking-tight text-white md:text-3xl", children: "Kết nối Cố vấn Nghề nghiệp & Alumni" }),
-                          d.jsx("p", { className: "mt-1 text-sm text-purple-100 max-w-2xl", children: "Nhận sự hướng dẫn 1-on-1 từ các anh chị cựu sinh viên và chuyên gia hàng đầu về định hướng sự nghiệp, phỏng vấn kỹ thuật và kinh nghiệm thực chiến." })
+                          d.jsx("span", {
+                            className: "mentorship-banner-tag inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider",
+                            style: {
+                              backgroundColor: "rgba(255, 255, 255, 0.2)",
+                              color: "#ffffff",
+                              border: "1px solid rgba(255, 255, 255, 0.35)",
+                              backdropFilter: "blur(4px)"
+                            },
+                            children: "Mạng lưới Cố vấn & Cựu sinh viên UET"
+                          }),
+                          d.jsx("h2", {
+                            className: "mentorship-banner-title mt-2 text-2xl font-bold tracking-tight md:text-3xl",
+                            style: { color: "#ffffff", textShadow: "0 1px 3px rgba(0,0,0,0.25)" },
+                            children: "Kết nối Cố vấn Nghề nghiệp & Alumni"
+                          }),
+                          d.jsx("p", {
+                            className: "mentorship-banner-desc mt-1 text-sm max-w-2xl",
+                            style: { color: "rgba(255, 255, 255, 0.92)", lineHeight: "1.55" },
+                            children: "Nhận sự hướng dẫn 1-on-1 từ các anh chị cựu sinh viên và chuyên gia hàng đầu về định hướng sự nghiệp, phỏng vấn kỹ thuật và kinh nghiệm thực chiến."
+                          })
                         ]
                       }),
                       d.jsxs("div", {
-                        className: "flex gap-2 shrink-0",
+                        className: "flex items-center gap-2.5 shrink-0 self-center md:self-center",
+                        style: { display: "flex", alignItems: "center", alignSelf: "center" },
                         children: [
                           d.jsx("button", {
                             onClick: () => setActiveTab("mentors"),
-                            className: `rounded-xl px-4 py-2.5 text-sm font-semibold transition ${activeTab === "mentors" ? "bg-white text-purple-900 shadow-md" : "bg-white/10 text-white hover:bg-white/20"}`,
-                            children: "1. Danh sách Cố vấn"
+                            className: `rounded-xl text-sm font-semibold transition cursor-pointer ${activeTab === "mentors" ? "mentorship-tab-active" : "mentorship-tab-inactive"}`,
+                            style: activeTab === "mentors"
+                              ? { backgroundColor: "#ffffff", color: "#1e3a8a", fontWeight: "700", boxShadow: "0 4px 14px rgba(0,0,0,0.2)", border: "1px solid #ffffff", height: "40px", minHeight: "40px", maxHeight: "40px", padding: "0 18px", display: "inline-flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }
+                              : { backgroundColor: "rgba(255, 255, 255, 0.16)", color: "#ffffff", border: "1px solid rgba(255, 255, 255, 0.28)", fontWeight: "600", height: "40px", minHeight: "40px", maxHeight: "40px", padding: "0 18px", display: "inline-flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" },
+                            children: "Danh sách Cố vấn"
                           }),
                           d.jsxs("button", {
                             onClick: () => setActiveTab("requests"),
-                            className: `rounded-xl px-4 py-2.5 text-sm font-semibold transition flex items-center gap-2 ${activeTab === "requests" ? "bg-white text-purple-900 shadow-md" : "bg-white/10 text-white hover:bg-white/20"}`,
+                            className: `rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer ${activeTab === "requests" ? "mentorship-tab-active" : "mentorship-tab-inactive"}`,
+                            style: activeTab === "requests"
+                              ? { backgroundColor: "#ffffff", color: "#1e3a8a", fontWeight: "700", boxShadow: "0 4px 14px rgba(0,0,0,0.2)", border: "1px solid #ffffff", height: "40px", minHeight: "40px", maxHeight: "40px", padding: "0 18px", display: "inline-flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" }
+                              : { backgroundColor: "rgba(255, 255, 255, 0.16)", color: "#ffffff", border: "1px solid rgba(255, 255, 255, 0.28)", fontWeight: "600", height: "40px", minHeight: "40px", maxHeight: "40px", padding: "0 18px", display: "inline-flex", alignItems: "center", justifyContent: "center", whiteSpace: "nowrap" },
                             children: [
-                              "2. Yêu cầu của tôi",
-                              requests.length > 0 && d.jsx("span", { className: "rounded-full bg-amber-400 text-purple-900 font-bold px-1.5 py-0.2 text-[11px]", children: requests.length })
+                              "Yêu cầu của tôi",
+                              requests.length > 0 && d.jsx("span", {
+                                className: "mentorship-count-badge rounded-full px-1.5 py-0.2 text-[11px]",
+                                style: { backgroundColor: "#f59e0b", color: "#1e1b4b", fontWeight: "800", marginLeft: "4px" },
+                                children: requests.length
+                              })
                             ]
                           })
                         ]
@@ -1162,7 +1209,12 @@
 
               // Demonstration Notice Badge
               d.jsxs("div", {
-                className: "rounded-xl bg-purple-50 border border-purple-200 p-3.5 text-xs text-purple-900 flex items-center gap-2",
+                className: "rounded-xl p-3.5 text-xs flex items-center gap-2",
+                style: {
+                  backgroundColor: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  color: "#1e40af"
+                },
                 children: [
                   d.jsx("span", { className: "text-base", children: "💡" }),
                   d.jsx("span", { children: "Lưu ý minh họa: Danh bạ cố vấn bao gồm các hồ sơ cựu sinh viên tiêu biểu phục vụ minh chứng đồ án. Mọi yêu cầu tư vấn sẽ được lưu trữ và quản lý trực tiếp qua cơ sở dữ liệu hệ thống." })
@@ -1183,7 +1235,11 @@
                           className: "flex items-start gap-4",
                           children: [
                             d.jsx("div", {
-                              className: "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 text-white font-bold text-xl shadow-md",
+                              className: "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white font-bold text-xl shadow-md",
+                              style: {
+                                background: "linear-gradient(135deg, #1e40af 0%, #3C50E0 100%)",
+                                color: "#ffffff"
+                              },
                               children: m.name.split(" ").slice(-1)[0][0]
                             }),
                             d.jsxs("div", {
@@ -1196,7 +1252,7 @@
                                     m.isSample && d.jsx("span", { className: "rounded bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5", children: "Minh họa" })
                                   ]
                                 }),
-                                d.jsx("p", { className: "text-xs font-semibold text-primary line-clamp-1", children: m.title }),
+                                d.jsx("p", { className: "text-xs font-semibold text-primary line-clamp-1", style: { color: "#3C50E0" }, children: m.title }),
                                 d.jsx("p", { className: "text-xs text-gray-500", children: m.company })
                               ]
                             })
@@ -1230,7 +1286,8 @@
                       className: "mt-6 pt-4 border-t border-gray-100",
                       children: d.jsx("button", {
                         onClick: () => openRequestModal(m),
-                        className: "w-full rounded-xl bg-primary py-2.5 text-xs font-bold text-white shadow hover:bg-opacity-90 transition",
+                        className: "w-full rounded-xl py-2.5 text-xs font-bold text-white shadow hover:opacity-90 transition cursor-pointer",
+                        style: { backgroundColor: "#3C50E0", color: "#ffffff" },
                         children: "📩 Đặt lịch / Gửi yêu cầu tư vấn"
                       })
                     })
@@ -1608,7 +1665,8 @@
         // Trigger Button
         d.jsxs("button", {
           onClick: () => setIsOpen(prev => !prev),
-          className: "group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300",
+          className: "group relative flex h-14 w-14 items-center justify-center rounded-full text-white shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer",
+          style: { background: "linear-gradient(135deg, #1e40af 0%, #3C50E0 100%)", color: "#ffffff" },
           title: "Trợ lý sinh viên UET AI",
           children: [
             d.jsx("span", { className: "text-2xl", children: "🤖" }),

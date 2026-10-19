@@ -17,3 +17,135 @@
 /* Company logo images retain their proportions and original resolution. */
 .cg-app .cg-company-logo.cg-company-logo-image{background:#fff;border:1px solid var(--cg-border);border-radius:12px;overflow:hidden}
 .cg-app .cg-company-logo img{display:block;width:auto;height:auto;max-width:calc(100% - 12px);max-height:calc(100% - 12px);object-fit:contain}
+
+/* ==========================================================================
+   StudentHub UET - Enhanced Banner and Common Color Utilities
+   ========================================================================== */
+.bg-primary {
+  background-color: #3C50E0 !important;
+}
+.text-primary {
+  color: #3C50E0 !important;
+}
+.border-primary {
+  border-color: #3C50E0 !important;
+}
+
+/* Mentorship Banner */
+.mentorship-banner {
+  background: linear-gradient(135deg, #0f2b5c 0%, #1e40af 50%, #3C50E0 100%) !important;
+  color: #ffffff !important;
+  border-radius: 1rem !important;
+  padding: 1.5rem 1.75rem !important;
+  box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.35), 0 8px 10px -6px rgba(30, 64, 175, 0.2) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.mentorship-banner::before {
+  content: "" !important;
+  position: absolute !important;
+  top: -60px !important;
+  right: -60px !important;
+  width: 220px !important;
+  height: 220px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, transparent 70%) !important;
+  pointer-events: none !important;
+}
+
+.mentorship-banner-tag {
+  display: inline-block !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  padding: 0.35rem 0.85rem !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.mentorship-banner-title {
+  color: #ffffff !important;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.35rem !important;
+  line-height: 1.25 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+.mentorship-banner-desc {
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.55 !important;
+  max-width: 44rem !important;
+}
+
+.mentorship-tab-active {
+  background-color: #ffffff !important;
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid #ffffff !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  padding: 0 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  font-size: 13.5px !important;
+}
+
+.mentorship-tab-inactive {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  font-weight: 600 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  padding: 0 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  font-size: 13.5px !important;
+}
+
+.mentorship-tab-inactive:hover {
+  background-color: rgba(255, 255, 255, 0.26) !important;
+  color: #ffffff !important;
+}
+
+.mentorship-count-badge {
+  background-color: #f59e0b !important;
+  color: #1e1b4b !important;
+  font-weight: 800 !important;
+  border-radius: 9999px !important;
+  padding: 0.15rem 0.45rem !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+
+/* Organizations / Departments Banner */
+.org-banner {
+  background: linear-gradient(135deg, #064e3b 0%, #047857 50%, #0d9488 100%) !important;
+  color: #ffffff !important;
+  border-radius: 1rem !important;
+  padding: 1.5rem 1.75rem !important;
+  box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.35) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
