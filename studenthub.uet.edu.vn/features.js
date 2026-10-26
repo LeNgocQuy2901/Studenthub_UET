@@ -436,10 +436,12 @@
       const q = searchQuery.toLowerCase().trim();
       const matchSearch = !q || (
         (lec.name && lec.name.toLowerCase().includes(q)) ||
+        (lec.fullName && lec.fullName.toLowerCase().includes(q)) ||
         (lec.email && lec.email.toLowerCase().includes(q)) ||
         (lec.academicTitle && lec.academicTitle.toLowerCase().includes(q)) ||
         (lec.position && lec.position.toLowerCase().includes(q)) ||
-        (lec.unitName && lec.unitName.toLowerCase().includes(q))
+        (lec.unitName && lec.unitName.toLowerCase().includes(q)) ||
+        (lec.office && lec.office.toLowerCase().includes(q))
       );
 
       const matchUnit = selectedUnit === "all" || lec.unitId === selectedUnit;
@@ -546,7 +548,7 @@
                   children: [
                     d.jsx("span", { children: "📋" }),
                     d.jsx("span", { children: "Danh sách Giảng viên (Bảng tra cứu)" }),
-                    d.jsx("span", { className: "ml-1.5 rounded-full bg-blue-100 text-blue-800 text-xs px-2 py-0.5 font-bold", children: lecturers.length || 73 })
+                    d.jsx("span", { className: "ml-1.5 rounded-full bg-blue-100 text-blue-800 text-xs px-2 py-0.5 font-bold", children: lecturers.length || 37 })
                   ]
                 }),
                 d.jsxs("button", {
@@ -708,9 +710,10 @@
                                     className: "py-3 px-4",
                                     children: lec.academicTitle && lec.academicTitle !== "—" ? d.jsx("span", {
                                       className: `inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-                                        lec.academicTitle.includes("GS") ? "bg-purple-50 text-purple-700 border border-purple-200" :
                                         lec.academicTitle.includes("PGS") ? "bg-indigo-50 text-indigo-700 border border-indigo-200" :
+                                        lec.academicTitle.includes("GS") ? "bg-purple-50 text-purple-700 border border-purple-200" :
                                         lec.academicTitle.includes("TS") ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                                        lec.academicTitle.includes("ThS") ? "bg-amber-50 text-amber-700 border border-amber-200" :
                                         "bg-gray-100 text-gray-700"
                                       }`,
                                       children: lec.academicTitle

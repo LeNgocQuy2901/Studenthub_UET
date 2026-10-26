@@ -546,60 +546,52 @@ def seed_data_if_needed():
     # Check lecturers
     cur.execute("SELECT COUNT(*) FROM lecturers")
     if cur.fetchone()[0] == 0:
-        crawled_path = os.path.join(os.path.dirname(__file__), "crawled_fit_units.json")
-        lecturers_data = []
-        if os.path.exists(crawled_path):
-            try:
-                with open(crawled_path, "r", encoding="utf-8") as f:
-                    crawled_data = json.load(f)
-                lec_idx = 0
-                for u in crawled_data:
-                    desc = u.get("description", "")
-                    unit_id = u.get("id")
-                    unit_name = u.get("name")
-                    unit_email = u.get("email", "fit@vnu.edu.vn")
-                    office = "Khoa CNTT, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    if "P311" in desc or "P313" in desc:
-                        office = "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    elif "P321" in desc:
-                        office = "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    elif "P315" in desc or "P317" in desc:
-                        office = "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    elif "319" in desc:
-                        office = "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    elif "406" in desc:
-                        office = "Phòng 406, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội"
-                    elif u.get("location"):
-                        office = u.get("location")
-
-                    if "Giảng viên thuộc Bộ môn:" in desc:
-                        part = desc.split("Giảng viên thuộc Bộ môn:")[1]
-                        part = re.split(r'Liên hệ|Địa chỉ|Điện thoại', part)[0]
-                        regex = re.compile(r'(GS\.\s*TS\.|PGS\.\s*TS\.|PGS\.TS\.|GS\.|PGS\.|TS\.|T\s*S\.|ThS\.|NCS\.\s*ThS\.|NCS\.|KS\.|CN\.|HVCH\.)\s+([^\(\n\r]+?)(?:\s*\(([^\)]+)\))?(?=\s*(?:GS\.|PGS\.|TS\.|T\s*S\.|ThS\.|NCS\.|KS\.|CN\.|HVCH\.|Liên hệ|Địa chỉ|Điện thoại|$))')
-                        matches = regex.findall(part)
-                        for m in matches:
-                            lec_idx += 1
-                            deg = m[0].strip().replace("T S.", "TS.").replace("PGS.TS.", "PGS. TS.")
-                            name = m[1].strip()
-                            note = m[2].strip() if m[2] else ""
-                            lecturers_data.append((
-                                f"lec-{lec_idx:03d}",
-                                name,
-                                deg,
-                                note if note else "Giảng viên",
-                                unit_email,
-                                unit_id,
-                                unit_name,
-                                office,
-                                "(024) 3754 7813"
-                            ))
-                if lecturers_data:
-                    cur.executemany("""
-                        INSERT OR IGNORE INTO lecturers (id, name, academic_title, position, email, unit_id, unit_name, office, phone)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, lecturers_data)
-            except Exception as e:
-                print("Warning seeding lecturers:", e)
+        lecturers_data = [
+            ("lec-001", "Nguyễn Đức Anh", "TS.", "Giảng viên", "nguyenducanh@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-002", "Trần Mạnh Cường", "ThS.", "Giảng viên", "tranmanhcuong@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-003", "Đặng Đức Hạnh", "PGS.TS.", "Phó Chủ nhiệm Bộ môn", "hanhdd@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-004", "Võ Đình Hiếu", "PGS.TS.", "Phó Chủ nhiệm Khoa, Chủ nhiệm Bộ môn", "hieuvd@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-005", "Phạm Ngọc Hùng", "PGS.TS.", "Phó Chủ nhiệm Khoa", "hungpn@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-006", "Vũ Thị Hồng Nhạn", "TS.", "Giảng viên", "vthnhan@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-007", "Nguyễn Văn Sơn", "TS.", "Giảng viên", "sonnguyen@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-008", "Nguyễn Việt Tân", "ThS.", "Giảng viên", "tannv@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-009", "Nguyễn Thị Thủy", "TS.", "Giảng viên", "thuy_nguyen@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-010", "Nguyễn Thu Trang", "ThS.", "Giảng viên", "trang.nguyen@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-011", "Lê Khánh Trình", "TS.", "Giảng viên", "trinhlk@vnu.edu.vn", "bo-mon-cong-nghe-phan-mem", "Bộ môn Công nghệ Phần mềm", "Phòng 321, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 9016"),
+            ("lec-012", "Nguyễn Hải Châu", "PGS.TS.", "Giảng viên cao cấp", "chaunh@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-013", "Vũ Bá Duy", "ThS.", "Giảng viên", "duyvb@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-014", "Lê Hồng Hải", "TS.", "Giảng viên", "hailh@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-015", "Dư Phương Hạnh", "TS.", "Giảng viên", "hanhdp@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-016", "Nguyễn Thị Hậu", "TS.", "Chủ nhiệm Bộ môn", "nguyenhau@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-017", "Nguyễn Ngọc Hóa", "PGS.TS.", "Giảng viên cao cấp", "hoa.nguyen@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-018", "Nguyễn Trí Thành", "PGS.TS.", "Giảng viên cao cấp", "ntthanh@vnu.edu.vn", "bo-mon-cac-he-thong-thong-tin-2", "Bộ môn Các Hệ thống Thông tin", "Phòng 311 - 313, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7813"),
+            ("lec-019", "Nguyễn Việt Anh", "PGS.TS.", "Giảng viên cao cấp", "vietanh@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-020", "Trần Thị Minh Châu", "TS.", "Giảng viên", "chauttm@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-021", "Mẫn Đức Chức", "TS.", "Giảng viên", "chucmd@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-022", "Lê Quang Hiếu", "TS.", "Giảng viên", "hieulq@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-023", "Lê Minh Khôi", "ThS.", "Giảng viên", "khoilm@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-024", "Lê Nguyên Khôi", "TS.", "Giảng viên", "khoi.n.le@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-025", "Nguyễn Thị Nhật Thanh", "PGS.TS.", "Giảng viên cao cấp", "thanhntn@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-026", "Nguyễn Thanh Thủy", "GS.TS.", "Nguyên Phó Hiệu trưởng, Giảng viên cao cấp", "nguyenthanhthuy@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-027", "Hoàng Thị Ngọc Trang", "ThS.", "Giảng viên", "tranghtn@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-028", "Lê Đức Trọng", "TS.", "Chủ nhiệm Bộ môn", "trongld@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-029", "Ngô Xuân Trường", "ThS.", "Giảng viên", "truonggnx@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-030", "Nguyễn Văn Vinh", "TS.", "Giảng viên", "vinhnv@vnu.edu.vn", "bo-mon-khoa-hoc-may-tinh", "Bộ môn Khoa học Máy tính", "Phòng 315 - 317, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7812"),
+            ("lec-031", "Đặng Cao Cường", "TS.", "Giảng viên", "cuongdc@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-032", "Nghiêm Nguyễn Việt Dũng", "TS.", "Giảng viên", "dung.nghiem@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-033", "Hoàng Thị Điệp", "TS.", "Chủ nhiệm Bộ môn", "diepht@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-034", "Đỗ Đức Đông", "TS.", "Giảng viên", "dongdoduc@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-035", "Đặng Thanh Hải", "TS.", "Giảng viên", "hai.dang@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-036", "GS.TS. Lê Sỹ Vinh", "GS.TS.", "Chủ nhiệm Khoa", "vinhls@vnu.edu.vn", "bo-mon-cac-phuong-phap-toan-trong-cong-nghe", "Bộ môn Khoa học và Kỹ thuật tính toán", "Phòng 319, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7064"),
+            ("lec-037", "Phạm Mạnh Linh", "TS.", "Chủ tịch Công đoàn Khoa", "linhmp@vnu.edu.vn", "bo-mon-mang-va-truyen-thong-may-tinh", "Bộ môn Mạng và Truyền thông Máy tính", "Phòng 406, Nhà E3, 144 Xuân Thủy, Cầu Giấy, Hà Nội", "(024) 3754 7611")
+        ]
+        try:
+            cur.executemany("""
+                INSERT OR IGNORE INTO lecturers (id, name, academic_title, position, email, unit_id, unit_name, office, phone)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, lecturers_data)
+        except Exception as e:
+            print("Warning seeding lecturers:", e)
 
     # Check mentors
     cur.execute("SELECT COUNT(*) FROM mentors")
@@ -1302,7 +1294,7 @@ def get_lecturers(keyword="", unit_id="all", academic_title="all", page=1, limit
     cur.execute(count_query, params)
     total = cur.fetchone()[0]
     
-    query += " ORDER BY unit_id ASC, id ASC"
+    query += " ORDER BY id ASC"
     
     page = max(1, int(page))
     limit = max(1, min(100, int(limit)))
@@ -1317,11 +1309,13 @@ def get_lecturers(keyword="", unit_id="all", academic_title="all", page=1, limit
     items = []
     for idx, r in enumerate(rows):
         stt = offset + idx + 1
+        acad_title = r["academic_title"] if r["academic_title"] else ""
+        full_display = f"{acad_title} {r['name']}".strip() if acad_title and not r['name'].startswith(acad_title) else r["name"]
         items.append({
             "id": r["id"],
             "stt": stt,
             "name": r["name"],
-            "fullName": r["name"],
+            "fullName": full_display,
             "academicTitle": r["academic_title"] if r["academic_title"] else "—",
             "title": r["academic_title"] if r["academic_title"] else "—",
             "position": r["position"] if r["position"] else "—",

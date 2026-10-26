@@ -155,7 +155,7 @@ test("SPA route /mentorship serves index.html", status == 200 and "<!doctype htm
 # 6. P3 Upgrade: Lecturers Data Table API
 status, res = request("/api/organizations/lecturers")
 test("GET /api/organizations/lecturers returns 200", status == 200 and res.get("code") == 200)
-test("Lecturers API has 73 total items", res.get("total", 0) >= 70)
+test("Lecturers API has 37 total items", res.get("total", 0) >= 37)
 test("First page returns lecturers list", len(res.get("data", [])) > 0)
 first_lec = res.get("data", [])[0] if res.get("data") else {}
 test("Lecturer has STT, fullName, title, email, department", all(k in first_lec for k in ["stt", "fullName", "title", "email", "department"]))
